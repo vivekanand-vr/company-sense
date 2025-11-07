@@ -1,0 +1,196 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id                String   @id @default(cuid())
+  name              String
+  domain            String?  @unique
+  website           String?
+  description       String?  @db.Text
+  
+  // Apollo.io specific fields
+  apolloId          String?  @unique // Apollo.io organization ID
+  primaryDomain     String?
+  blogUrl           String?
+  logoUrl           String?
+  
+  // Company classification and industry
+  industry          String?
+  keywords          Json?    // Array of keywords from Apollo
+  industries        Json?    // Primary and secondary industries
+  secondaryIndustries Json?
+  
+  // Company type and size
+  type              CompanyType?
+  tags              Json?    // Array of tags/categories
+  employees         Int?
+  employeeRange     EmployeeRange?
+  departmentHeadcount Json? // Department-wise employee count
+  
+  // Financial information
+  revenue           Decimal? @db.Decimal(15,2)
+  revenueCurrency   String?  @default("USD")
+  revenueRange      RevenueRange?
+  revenueUSD        Decimal? @db.Decimal(15,2) // Always in USD millions
+  originalCurrency  String?  // Original currency before conversion
+  annualRevenueFormatted String? // "100M" format from Apollo
+  
+  // Funding information
+  totalFunding      Decimal? @db.Decimal(15,2)
+  totalFundingFormatted String?
+  latestFundingStage String?
+  latestFundingDate DateTime?
+  fundingEvents     Json?    // Array of funding rounds
+  
+  // Company details
+  foundedYear       Int?
+  publiclyTraded    Boolean? @default(false)
+  stockSymbol       String?
+  stockExchange     String?
+  
+  // Contact information
+  phone             String?
+  primaryPhone      Json?    // Apollo primary phone object
+  email             String?
+  
+  // Address information
+  address           Json?    // Full address object
+  rawAddress        String?
+  streetAddress     String?
+  city              String?
+  state             String?
+  postalCode        String?
+  country           String?
+  
+  // Social and external links
+  linkedinUrl       String?
+  twitterUrl        String?
+  facebookUrl       String?
+  linkedinUid       String?
+  crunchbaseUrl     String?
+  angellistUrl      String?
+  otherUrls         Json?    // Array of additional URLs
+  
+  // Technology information
+  technologies      Json?    // Array of technology names
+  currentTechnologies Json?  // Detailed technology objects
+  
+  // Enhanced company information (from ChatGPT)
+  businessModel     String?
+  keyProducts       Json?    // Array of key products/services
+  parentCompany     String?
+  subsidiaries      Json?    // Array of subsidiary companies
+  ceo               String?
+  marketPosition    String?
+  competitiveAdvantage String?
+  summary           String?  @db.Text // ChatGPT generated summary
+  
+  // Data source and quality
+  dataSource        String   @default("google_apollo") // Which pipeline provided the data
+  confidence        Decimal? @db.Decimal(3,2)   // Confidence score 0-1
+  lastUpdated       DateTime @default(now())
+  isVerified        Boolean  @default(false)
+  
+  // Data enrichment tracking
+  googleSearchData  Json?    // Google search results
+  apolloSource      Boolean  @default(false)
+  chatgptSource     Boolean  @default(false)
+  combinedSource    Boolean  @default(false)
+  enrichmentScore   Decimal? @db.Decimal(3,2)   // How much data was enriched 0-1
+  lastEnriched      DateTime @default(now())
+  
+  // SEO and descriptions
+  seoDescription    String?  @db.Text
+  shortDescription  String?  @db.Text
+  
+  // Alexa ranking and metrics
+  alexaRanking      Int?
+  retailLocationCount Int?   @default(0)
+  
+  // External IDs and raw data
+  // External IDs and raw data
+  externalIds       Json?    // Other external IDs from different sources
+  rawData           Json?    // Raw response from Apollo API for debugging
+  orgChartData      Json?    // Organization chart information
+  
+  @@index([name])
+  @@index([domain])
+  @@index([primaryDomain])
+  @@index([apolloId])
+  @@index([industry])
+  @@index([type])
+  @@index([employeeRange])
+  @@index([revenueRange])
+  @@index([foundedYear])
+  @@index([publiclyTraded])
+  @@index([dataSource])
+  @@index([lastUpdated])
+  @@index([enrichmentScore])
+  @@index([apolloSource])
+  @@index([chatgptSource])
+  @@map("companies")
+}
+
+enum CompanyType {
+  ecommerce
+  education
+  health
+  fintech
+  saas
+  manufacturing
+  consulting
+  marketing
+  retail
+  technology
+  nonprofit
+  government
+  startup
+  enterprise
+  other
+}
+
+enum EmployeeRange {
+  range_1_10      // "1-10"
+  range_11_50     // "11-50"
+  range_51_100    // "51-100"
+  range_101_250   // "101-250"
+  range_251_500   // "251-500"
+  range_501_1000  // "501-1000"
+  range_1001_5000 // "1001-5000"
+  range_5001_10000 // "5001-10000"
+  range_10000_plus // "10000+"
+}
+
+enum RevenueRange {
+  range_1_10      // "1-10" (millions)
+  range_10_50     // "10-50"
+  range_50_100    // "50-100"
+  range_100_500   // "100-500"
+  range_500_1000  // "500-1000"
+  range_1000_5000 // "1000-5000"
+  range_5000_plus // "5000+"
+}
+
+model SearchLog {
+  id          String   @id @default(cuid())
+  query       String
+  filters     Json?    // Applied filters during search
+  resultsCount Int     @default(0)
+  hitCache    Boolean  @default(false)
+  requestedAt DateTime @default(now())
+  clientIP    String?
+  userAgent   String?
+  
+  @@index([query])
+  @@index([requestedAt])
+  @@map("search_logs")
+}

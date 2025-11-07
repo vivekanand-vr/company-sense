@@ -1,0 +1,21 @@
+# Docker ignore file to exclude unnecessary files from build context
+node_modules
+npm-debug.log
+Dockerfile*
+docker-compose*
+.dockerignore
+.git
+.gitignore
+README.md
+.env
+.nyc_output
+coverage
+.coverage
+.coverage.*
+.cache
+dist
+.DS_Store
+*.log
+logs
+.vscode
+.idea

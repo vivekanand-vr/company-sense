@@ -1,0 +1,60 @@
+-- CreateTable
+CREATE TABLE `companies` (
+    `id` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `domain` VARCHAR(191) NULL,
+    `website` VARCHAR(191) NULL,
+    `description` TEXT NULL,
+    `industry` VARCHAR(191) NULL,
+    `type` ENUM('ecommerce', 'education', 'health', 'fintech', 'saas', 'manufacturing', 'consulting', 'marketing', 'retail', 'technology', 'nonprofit', 'government', 'startup', 'enterprise', 'other') NULL,
+    `tags` JSON NULL,
+    `employees` INTEGER NULL,
+    `employeeRange` ENUM('range_1_10', 'range_11_50', 'range_51_100', 'range_101_250', 'range_251_500', 'range_501_1000', 'range_1001_5000', 'range_5001_10000', 'range_10000_plus') NULL,
+    `revenue` DECIMAL(15, 2) NULL,
+    `revenueCurrency` VARCHAR(191) NULL DEFAULT 'USD',
+    `revenueRange` ENUM('range_1_10', 'range_10_50', 'range_50_100', 'range_100_500', 'range_500_1000', 'range_1000_5000', 'range_5000_plus') NULL,
+    `foundedYear` INTEGER NULL,
+    `phone` VARCHAR(191) NULL,
+    `email` VARCHAR(191) NULL,
+    `address` JSON NULL,
+    `linkedinUrl` VARCHAR(191) NULL,
+    `twitterUrl` VARCHAR(191) NULL,
+    `facebookUrl` VARCHAR(191) NULL,
+    `crunchbaseUrl` VARCHAR(191) NULL,
+    `otherUrls` JSON NULL,
+    `dataSource` VARCHAR(191) NOT NULL DEFAULT 'apollo',
+    `confidence` DECIMAL(3, 2) NULL,
+    `lastUpdated` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `isVerified` BOOLEAN NOT NULL DEFAULT false,
+    `apolloId` VARCHAR(191) NULL,
+    `externalIds` JSON NULL,
+    `rawData` JSON NULL,
+
+    UNIQUE INDEX `companies_domain_key`(`domain`),
+    UNIQUE INDEX `companies_apolloId_key`(`apolloId`),
+    INDEX `companies_name_idx`(`name`),
+    INDEX `companies_domain_idx`(`domain`),
+    INDEX `companies_industry_idx`(`industry`),
+    INDEX `companies_type_idx`(`type`),
+    INDEX `companies_employeeRange_idx`(`employeeRange`),
+    INDEX `companies_revenueRange_idx`(`revenueRange`),
+    INDEX `companies_dataSource_idx`(`dataSource`),
+    INDEX `companies_lastUpdated_idx`(`lastUpdated`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `search_logs` (
+    `id` VARCHAR(191) NOT NULL,
+    `query` VARCHAR(191) NOT NULL,
+    `filters` JSON NULL,
+    `resultsCount` INTEGER NOT NULL DEFAULT 0,
+    `hitCache` BOOLEAN NOT NULL DEFAULT false,
+    `requestedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `clientIP` VARCHAR(191) NULL,
+    `userAgent` VARCHAR(191) NULL,
+
+    INDEX `search_logs_query_idx`(`query`),
+    INDEX `search_logs_requestedAt_idx`(`requestedAt`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
