@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    /* Black background theme with blue accents */
+    --color-background: 0 0% 0%;
+    --color-foreground: 0 0% 100%;
+    --color-card: 0 0% 5%;
+    --color-card-foreground: 0 0% 100%;
+    --color-popover: 0 0% 5%;
+    --color-popover-foreground: 0 0% 100%;
+    --color-primary: 217 91% 60%;
+    --color-primary-foreground: 0 0% 100%;
+    --color-secondary: 0 0% 10%;
+    --color-secondary-foreground: 0 0% 100%;
+    --color-muted: 0 0% 8%;
+    --color-muted-foreground: 0 0% 70%;
+    --color-accent: 0 0% 10%;
+    --color-accent-foreground: 0 0% 100%;
+    --color-destructive: 0 62.8% 30.6%;
+    --color-destructive-foreground: 0 0% 100%;
+    --color-border: 217 91% 60%;
+    --color-input: 0 0% 8%;
+    --color-ring: 217 91% 60%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Keep same dark theme */
+    --color-background: 0 0% 0%;
+    --color-foreground: 0 0% 100%;
+    --color-card: 0 0% 5%;
+    --color-card-foreground: 0 0% 100%;
+    --color-popover: 0 0% 5%;
+    --color-popover-foreground: 0 0% 100%;
+    --color-primary: 217 91% 60%;
+    --color-primary-foreground: 0 0% 100%;
+    --color-secondary: 0 0% 10%;
+    --color-secondary-foreground: 0 0% 100%;
+    --color-muted: 0 0% 8%;
+    --color-muted-foreground: 0 0% 70%;
+    --color-accent: 0 0% 10%;
+    --color-accent-foreground: 0 0% 100%;
+    --color-destructive: 0 62.8% 30.6%;
+    --color-destructive-foreground: 0 0% 100%;
+    --color-border: 217 91% 60%;
+    --color-input: 0 0% 8%;
+    --color-ring: 217 91% 60%;
+  }
+
+  * {
+    border-color: hsl(var(--color-border));
+  }
+
+  body {
+    background-color: hsl(var(--color-background));
+    color: hsl(var(--color-foreground));
+    font-family: system-ui, sans-serif;
+  }
+
+  /* Ensure placeholder text is white */
+  input::placeholder,
+  textarea::placeholder {
+    color: hsl(var(--color-muted-foreground));
+    opacity: 1;
+  }
+
+  /* Force dark theme by default */
+  html {
+    color-scheme: dark;
+  }
+}
