@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Search, Filter, Building2, Users, DollarSign, Calendar, ArrowLeft, Download } from "lucide-react";
+import { Search, Filter, Building2, Users, DollarSign, Calendar, ArrowLeft, Download, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,8 +9,9 @@ import { CompaniesTable } from "@/components/companies/CompaniesTable";
 import { CompaniesFilters } from "@/components/companies/CompaniesFilters";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { ProfileDropdown } from "@/components/auth/ProfileDropdown";
-import { CompanyData } from "@/types/company";
+import { CompanyData, Filters } from "@/types/company";
 import { fetchCompanies, exportCompaniesExcel } from "@/lib/companies-api";
+import { bulkLookup } from "@/lib/api";
 
 interface CompaniesFilters {
   search?: string;
@@ -66,15 +67,16 @@ export default function CompaniesPage() {
     return () => clearTimeout(timeoutId);
   }, [searchTerm]); // Only depend on searchTerm
 
-  const loadCompanies = useCallback(async (page: number = 1, newFilters?: CompaniesFilters) => {
+  const loadCompanies = useCallback(async (page: number = 1, newFilters?: CompaniesFilters, newLimit?: number) => {
     try {
       setIsLoading(true);
       setError(undefined);
       
       const currentFilters = newFilters || filters;
+      const currentLimit = newLimit || pagination.limit;
       const response = await fetchCompanies({
         page,
-        limit: pagination.limit,
+        limit: currentLimit,
         ...currentFilters
       });
       
@@ -108,6 +110,11 @@ export default function CompaniesPage() {
     loadCompanies(page);
   };
 
+  const handleLimitChange = (newLimit: number) => {
+    setPagination(prev => ({ ...prev, limit: newLimit }));
+    loadCompanies(1, filters, newLimit); // Reset to page 1 when limit changes
+  };
+
   const handleExportFiltered = async () => {
     try {
       setError(undefined); // Clear any previous errors
@@ -115,6 +122,38 @@ export default function CompaniesPage() {
     } catch (err) {
       console.error('Export failed:', err);
       setError(err instanceof Error ? err.message : 'Export failed');
+    }
+  };
+
+  const handleBulkUpload = async (names: string[], uploadFilters?: Filters) => {
+    try {
+      setIsLoading(true);
+      setError(undefined);
+      
+      // Convert companies page filters to the format expected by bulkLookup
+      const convertedFilters: Filters = {
+        // Use uploadFilters if provided, otherwise convert from current page filters
+        turnover: uploadFilters?.turnover,
+        turnoverCustom: uploadFilters?.turnoverCustom,
+        headcount: uploadFilters?.headcount || (filters.minEmployees ? 'custom' : undefined),
+        headcountCustom: uploadFilters?.headcountCustom || filters.minEmployees,
+        type: uploadFilters?.type || (filters.industry ? 'custom' : undefined),
+        typeCustom: uploadFilters?.typeCustom || filters.industry,
+        location: uploadFilters?.location || filters.country,
+        keywords: uploadFilters?.keywords,
+      };
+      
+      await bulkLookup({ 
+        companies: names, 
+        filters: convertedFilters 
+      });
+      
+      // Refresh the companies list to show newly added companies
+      loadCompanies(1, filters);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Bulk upload failed");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -154,7 +193,7 @@ export default function CompaniesPage() {
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Back to Search
                 </Button>
-            </div>
+              </div>
           </div>
 
           {/* Stats Overview */}
@@ -181,7 +220,7 @@ export default function CompaniesPage() {
               <div className="flex items-center space-x-3">
                 <DollarSign className="w-8 h-8 text-purple-400" />
                 <div>
-                  <p className="text-gray-400 text-sm">Results Per Page</p>
+                  <p className="text-gray-400 text-sm">Per Page Limit</p>
                   <p className="text-2xl font-bold text-white">{pagination.limit}</p>
                 </div>
               </div>
@@ -221,6 +260,17 @@ export default function CompaniesPage() {
                 <Filter className="w-4 h-4 mr-2" />
                 Filters
               </Button>
+              <Select value={pagination.limit.toString()} onValueChange={(value) => handleLimitChange(parseInt(value))}>
+                <SelectTrigger className="w-32 bg-gray-800 border-gray-700 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-800 border-gray-700">
+                  <SelectItem value="20">20 per page</SelectItem>
+                  <SelectItem value="60">60 per page</SelectItem>
+                  <SelectItem value="80">80 per page</SelectItem>
+                  <SelectItem value="100">100 per page</SelectItem>
+                </SelectContent>
+              </Select>
               <Select value={filters.sortBy} onValueChange={(value) => handleFiltersChange({ ...filters, sortBy: value })}>
                 <SelectTrigger className="w-48 bg-gray-800 border-gray-700 text-white">
                   <SelectValue placeholder="Sort by" />

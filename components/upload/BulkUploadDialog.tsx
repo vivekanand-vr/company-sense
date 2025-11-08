@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { OptionalFilters } from "@/components/search/OptionalFilters";
 import { parseCSV, parseExcel } from "@/lib/parsing/csv";
 import { Filters } from "@/types/company";
 
@@ -45,6 +46,10 @@ export function BulkUploadDialog({ onUpload, hints }: BulkUploadDialogProps) {
   const [offset, setOffset] = useState<number>(0);
   const [customStart, setCustomStart] = useState<number>(1);
   const [customEnd, setCustomEnd] = useState<number>(10);
+  
+  // Filters state
+  const [filters, setFilters] = useState<Filters>(hints || {});
+  const [showFilters, setShowFilters] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -200,7 +205,7 @@ export function BulkUploadDialog({ onUpload, hints }: BulkUploadDialogProps) {
     }
 
     console.log(`Frontend: Sending ${namesToSend.length} companies (mode: ${uploadMode}) to backend:`, namesToSend.slice(0, 5), '...');
-    onUpload(namesToSend, hints);
+    onUpload(namesToSend, filters);
     setIsOpen(false);
     resetState();
   };
@@ -217,6 +222,8 @@ export function BulkUploadDialog({ onUpload, hints }: BulkUploadDialogProps) {
     setOffset(0);
     setCustomStart(1);
     setCustomEnd(10);
+    setFilters(hints || {});
+    setShowFilters(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -230,15 +237,51 @@ export function BulkUploadDialog({ onUpload, hints }: BulkUploadDialogProps) {
           Bulk Upload
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Bulk Company Upload</DialogTitle>
           <DialogDescription>
-            Upload a CSV or Excel file containing company names for batch processing.
+            Upload a CSV or Excel file containing company names for batch processing with optional filters.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Optional Filters Section */}
+          <div className="border border-gray-700 rounded-lg">
+            <div className="p-4 border-b border-gray-700 bg-gray-800/50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Settings className="w-4 h-4 text-blue-400" />
+                  <h3 className="font-medium text-white">Optional Filters</h3>
+                  <span className="text-xs text-gray-400">
+                    (Applied to all uploaded companies)
+                  </span>
+                  {Object.keys(filters).some(key => filters[key as keyof Filters]) && (
+                    <span className="px-2 py-1 bg-blue-900/40 text-blue-300 text-xs rounded-full border border-blue-700">
+                      {Object.keys(filters).filter(key => filters[key as keyof Filters]).length} active
+                    </span>
+                  )}
+                </div>
+                <Button
+                  onClick={() => setShowFilters(!showFilters)}
+                  variant="ghost"
+                  size="sm"
+                  className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                >
+                  {showFilters ? 'Hide' : 'Show'} Filters
+                </Button>
+              </div>
+            </div>
+            {showFilters && (
+              <div className="p-4">
+                <OptionalFilters 
+                  hints={filters}
+                  onHintsChange={setFilters}
+                />
+              </div>
+            )}
+          </div>
+
           {!parsedData ? (
             <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
               <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
@@ -455,6 +498,9 @@ export function BulkUploadDialog({ onUpload, hints }: BulkUploadDialogProps) {
               uploadMode === 'chunk' ? Math.min(chunkSize, Math.max(0, totalCount - offset)) :
               Math.max(0, customEnd - customStart + 1)
             } Companies
+            {Object.keys(filters).some(key => filters[key as keyof Filters]) && (
+              <span className="ml-1 text-xs opacity-75">(with filters)</span>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

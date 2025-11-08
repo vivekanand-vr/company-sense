@@ -140,7 +140,7 @@ export async function exportToExcel(filters?: Filters): Promise<void> {
   if (filters?.type) queryParams.append('type', filters.type);
   if (filters?.location) queryParams.append('location', filters.location);
   
-  const url = `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'}/api/companies/export/excel?${queryParams.toString()}`;
+  const url = `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'}/api/companies/export/excel?${queryParams.toString()}`;
   
   try {
     // Make authenticated request to get the file

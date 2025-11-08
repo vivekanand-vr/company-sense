@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     };
     
     // Call backend API using axios
-    const backendUrl = process.env.BACKEND_API_URL || 'http://localhost:3001';
+    const backendUrl = process.env.BACKEND_API_URL || 'http://localhost:8000';
     
     const response = await axios.post(
       `${backendUrl}/api/companies/bulk-lookup`,

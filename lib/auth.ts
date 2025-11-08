@@ -7,7 +7,7 @@ import {
   RefreshResponse 
 } from '@/types/auth';
 
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
 // Storage keys
 const AUTH_TOKEN_KEY = 'authToken';

@@ -368,7 +368,7 @@ npm start
 
 ### Environment Variables
 ```env
-BACKEND_API_URL=http://localhost:3001  # Backend API URL
+BACKEND_API_URL=http://localhost:8000  # Backend API URL
 ```
 
 ### Key Scripts

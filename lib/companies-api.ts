@@ -1,7 +1,7 @@
 import { CompanyData } from "@/types/company";
 import { authenticatedFetch } from "@/lib/auth";
 
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001/api';
+const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000/api';
 
 export interface CompaniesFilters {
   page?: number;
