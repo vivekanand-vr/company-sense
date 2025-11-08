@@ -1,0 +1,5 @@
+# Run console.log check
+node .husky/check-console.js
+
+# Run lint-staged
+npx lint-staged

@@ -6,7 +6,30 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "next lint",
+    "lint:fix": "next lint --fix",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "app/**/*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "eslint --max-warnings=0"
+    ],
+    "components/**/*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "eslint --max-warnings=0"
+    ],
+    "lib/**/*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "eslint --max-warnings=0"
+    ],
+    "types/**/*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "eslint --max-warnings=0"
+    ],
+    "*.{json,css,md}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -32,6 +55,8 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.1.0",
+    "@commitlint/config-conventional": "^20.0.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/papaparse": "^5.3.16",
@@ -39,6 +64,9 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.0.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
+    "prettier": "^3.6.2",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
