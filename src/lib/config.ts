@@ -6,7 +6,7 @@ dotenv.config();
 
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  PORT: z.string().default('3001'),
+  PORT: z.string().default('8000'),
   DATABASE_URL: z.string().url(),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   RATE_LIMIT_WINDOW_MS: z.string().default('60000'),

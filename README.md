@@ -193,7 +193,7 @@ For secure access to protected endpoints, the system provides JWT-based authenti
 Authenticate with admin credentials to receive a JWT token for API access.
 
 ```bash
-curl -X POST "http://localhost:3001/api/auth/login" \
+curl -X POST "http://localhost:8000/api/auth/login" \
   -H "Content-Type: application/json" \
   -d '{
     "username": "admin",
@@ -222,7 +222,7 @@ curl -X POST "http://localhost:3001/api/auth/login" \
 Verify if a JWT token is valid and not expired.
 
 ```bash
-curl -X GET "http://localhost:3001/api/auth/verify" \
+curl -X GET "http://localhost:8000/api/auth/verify" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
@@ -232,7 +232,7 @@ curl -X GET "http://localhost:3001/api/auth/verify" \
 Get current authenticated user information.
 
 ```bash
-curl -X GET "http://localhost:3001/api/auth/me" \
+curl -X GET "http://localhost:8000/api/auth/me" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
@@ -242,7 +242,7 @@ curl -X GET "http://localhost:3001/api/auth/me" \
 Refresh a valid JWT token to extend its expiration.
 
 ```bash
-curl -X POST "http://localhost:3001/api/auth/refresh" \
+curl -X POST "http://localhost:8000/api/auth/refresh" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
@@ -252,7 +252,7 @@ curl -X POST "http://localhost:3001/api/auth/refresh" \
 Logout and invalidate the current session (client-side token removal).
 
 ```bash
-curl -X POST "http://localhost:3001/api/auth/logout" \
+curl -X POST "http://localhost:8000/api/auth/logout" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
@@ -268,7 +268,7 @@ curl -X POST "http://localhost:3001/api/auth/logout" \
 2. Use the JWT token in API requests:
    ```bash
    # Add Authorization header to protected endpoints
-   curl -H "Authorization: Bearer YOUR_JWT_TOKEN" "http://localhost:3001/api/companies"
+   curl -H "Authorization: Bearer YOUR_JWT_TOKEN" "http://localhost:8000/api/companies"
    ```
 
 **Security Features:**
@@ -321,10 +321,10 @@ By default, all company endpoints are publicly accessible. To add authentication
 3. **Mixed protection (some public, some private):**
    ```bash
    # Public access (no token required)
-   curl "http://localhost:3001/api/companies?limit=5"
+   curl "http://localhost:8000/api/companies?limit=5"
    
    # Protected access (token required)
-   curl -H "Authorization: Bearer YOUR_JWT_TOKEN" "http://localhost:3001/api/companies/export/excel"
+   curl -H "Authorization: Bearer YOUR_JWT_TOKEN" "http://localhost:8000/api/companies/export/excel"
    ```
 
 ### 🎯 Core Intelligence API
@@ -335,7 +335,7 @@ By default, all company endpoints are publicly accessible. To add authentication
 Uses the complete Google Search → Apollo API → ChatGPT pipeline for maximum data accuracy. **Now with database-first optimization** - returns cached data instantly if company exists!
 
 ```bash
-curl -X POST "http://localhost:3001/api/companies/lookup" \
+curl -X POST "http://localhost:8000/api/companies/lookup" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Shopify Inc",
@@ -358,7 +358,7 @@ curl -X POST "http://localhost:3001/api/companies/lookup" \
 Process multiple companies with filtering in a single request (up to 100 companies).
 
 ```bash
-curl -X POST "http://localhost:3001/api/companies/bulk-lookup" \
+curl -X POST "http://localhost:8000/api/companies/bulk-lookup" \
   -H "Content-Type: application/json" \
   -d '{
     "names": ["Apple Inc", "Microsoft", "Google", "Amazon"],
@@ -373,13 +373,13 @@ Retrieve companies from database with comprehensive filtering and pagination.
 
 ```bash
 # Basic listing with pagination
-curl "http://localhost:3001/api/companies?page=1&limit=20"
+curl "http://localhost:8000/api/companies?page=1&limit=20"
 
 # Advanced filtering
-curl "http://localhost:3001/api/companies?industry=Technology&minEmployees=1000&maxRevenue=10000000000&country=United%20States&publiclyTraded=true&sortBy=revenue&sortOrder=desc"
+curl "http://localhost:8000/api/companies?industry=Technology&minEmployees=1000&maxRevenue=10000000000&country=United%20States&publiclyTraded=true&sortBy=revenue&sortOrder=desc"
 
 # Search functionality
-curl "http://localhost:3001/api/companies?search=fintech&minEmployees=100&sortBy=enrichmentScore&sortOrder=desc"
+curl "http://localhost:8000/api/companies?search=fintech&minEmployees=100&sortBy=enrichmentScore&sortOrder=desc"
 ```
 
 **Advanced Filter Parameters:**
@@ -399,11 +399,11 @@ curl "http://localhost:3001/api/companies?search=fintech&minEmployees=100&sortBy
 
 ```bash
 # Export technology companies with 1000+ employees
-curl "http://localhost:3001/api/companies/export/excel?industry=Technology&minEmployees=1000" \
+curl "http://localhost:8000/api/companies/export/excel?industry=Technology&minEmployees=1000" \
   --output "tech-companies.xlsx"
 
 # Export by revenue range and location
-curl "http://localhost:3001/api/companies/export/excel?minRevenue=100000000&country=United%20States&publiclyTraded=true" \
+curl "http://localhost:8000/api/companies/export/excel?minRevenue=100000000&country=United%20States&publiclyTraded=true" \
   --output "us-public-companies.xlsx"
 ```
 
@@ -411,7 +411,7 @@ curl "http://localhost:3001/api/companies/export/excel?minRevenue=100000000&coun
 **GET** `/api/companies/export/all/excel`
 
 ```bash
-curl "http://localhost:3001/api/companies/export/all/excel" \
+curl "http://localhost:8000/api/companies/export/all/excel" \
   --output "complete-company-database.xlsx"
 ```
 
@@ -419,7 +419,7 @@ curl "http://localhost:3001/api/companies/export/all/excel" \
 **GET** `/api/companies/export/csv`
 
 ```bash
-curl "http://localhost:3001/api/companies/export/csv?industry=fintech&minEmployees=50" \
+curl "http://localhost:8000/api/companies/export/csv?industry=fintech&minEmployees=50" \
   --output "fintech-companies.csv"
 ```
 
@@ -436,10 +436,10 @@ curl "http://localhost:3001/api/companies/export/csv?industry=fintech&minEmploye
 **Access Documentation:**
 ```bash
 # Open in browser
-http://localhost:3001/api-docs
+http://localhost:8000/api-docs
 
 # Get raw OpenAPI spec
-curl http://localhost:3001/api-docs.json
+curl http://localhost:8000/api-docs.json
 ```
 
 **Testing Authentication in Swagger:**
@@ -456,7 +456,7 @@ curl http://localhost:3001/api-docs.json
 Get comprehensive database query statistics and log file information.
 
 ```bash
-curl "http://localhost:3001/api/db/stats"
+curl "http://localhost:8000/api/db/stats"
 ```
 
 **Response:**
@@ -490,14 +490,14 @@ curl "http://localhost:3001/api/db/stats"
 Reset database query counters and performance metrics.
 
 ```bash
-curl -X POST "http://localhost:3001/api/db/stats/reset"
+curl -X POST "http://localhost:8000/api/db/stats/reset"
 ```
 
 #### Health Check
 **GET** `/health`
 
 ```bash
-curl "http://localhost:3001/health"
+curl "http://localhost:8000/health"
 ```
 
 **Enhanced Response Examples:**
@@ -727,10 +727,10 @@ curl "http://localhost:3001/health"
 **Database Statistics API:**
 ```bash
 # Get database query statistics
-curl "http://localhost:3001/api/db/stats"
+curl "http://localhost:8000/api/db/stats"
 
 # Reset query statistics
-curl -X POST "http://localhost:3001/api/db/stats/reset"
+curl -X POST "http://localhost:8000/api/db/stats/reset"
 ```
 
 **Example Database Log Entry:**

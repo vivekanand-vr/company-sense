@@ -14,7 +14,7 @@ const options = {
       {
         url: process.env.NODE_ENV === 'production' 
           ? 'https://your-production-url.com' 
-          : 'http://localhost:3001',
+          : 'http://localhost:8000',
         description: process.env.NODE_ENV === 'production' ? 'Production server' : 'Development server',
       },
     ],

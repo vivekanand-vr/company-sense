@@ -448,7 +448,7 @@ GOOGLE_SEARCH_ENGINE_ID=your_search_engine_id_here
 
 # Application Settings
 NODE_ENV=development
-PORT=3001
+PORT=8000
 LOG_LEVEL=info
 PRISMA_DISABLE_CONSOLE_LOG=true
 ```
@@ -795,7 +795,7 @@ The current implementation includes:
 1. **Environment Setup**: Configure API keys in `.env` file
 2. **Database Migration**: Run `npx prisma migrate dev`
 3. **Admin Credentials**: Set ADMIN_USERNAME and ADMIN_PASSWORD
-4. **Testing**: Use Swagger UI at `http://localhost:3001/api-docs`
+4. **Testing**: Use Swagger UI at `http://localhost:8000/api-docs`
 5. **Frontend Integration**: Implement JWT authentication in frontend
 
 ### Recommended Enhancements

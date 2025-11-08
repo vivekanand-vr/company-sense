@@ -581,7 +581,7 @@ All endpoints return errors in this consistent format:
 **Description:** Complete company research using Google Search → Apollo API → ChatGPT pipeline
 
 ```bash
-curl -X POST "http://localhost:3001/api/companies/lookup" \
+curl -X POST "http://localhost:8000/api/companies/lookup" \
   -H "Content-Type: application/json" \
   -d '{
     "companyName": "Shopify Inc",
@@ -727,7 +727,7 @@ curl -X POST "http://localhost:3001/api/companies/lookup" \
 **Description:** Process multiple companies with filtering in a single request
 
 ```bash
-curl -X POST "http://localhost:3001/api/companies/bulk-lookup" \
+curl -X POST "http://localhost:8000/api/companies/bulk-lookup" \
   -H "Content-Type: application/json" \
   -d '{
     "companies": ["Shopify", "Stripe", "Square"],
