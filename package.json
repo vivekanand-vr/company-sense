@@ -24,7 +24,8 @@
     "docker:dev:detached": "docker-compose -f docker-compose.dev.yml up --build -d",
     "docker:stop": "docker-compose -f docker-compose.dev.yml down",
     "docker:logs": "docker-compose -f docker-compose.dev.yml logs -f backend",
-    "docker:clean": "docker-compose -f docker-compose.dev.yml down -v && docker system prune -f"
+    "docker:clean": "docker-compose -f docker-compose.dev.yml down -v && docker system prune -f",
+    "prepare": "husky install"
   },
   "keywords": [
     "express",
@@ -75,6 +76,8 @@
     "@typescript-eslint/parser": "^6.11.0",
     "@vitest/coverage-v8": "^0.34.6",
     "eslint": "^8.54.0",
+    "husky": "^8.0.0",
+    "lint-staged": "^16.2.6",
     "pino-pretty": "^13.1.2",
     "prettier": "^3.1.0",
     "prisma": "^5.6.0",
@@ -88,5 +91,14 @@
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "lint-staged": {
+    "*.ts": [
+      "eslint --fix",
+      "node scripts/check-console.js"
+    ],
+    "*.js": [
+      "node scripts/check-console.js"
+    ]
   }
 }
