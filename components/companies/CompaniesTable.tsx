@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
-import { ExternalLink, Building2, Users, DollarSign, Calendar, Award, ChevronLeft, ChevronRight, Globe, Linkedin, Twitter, Facebook, FileText } from "lucide-react";
+import { useState } from "react";
+import { ExternalLink, Building2, Users, DollarSign, Calendar, Award, ChevronLeft, ChevronRight, Globe, FileText } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -17,7 +18,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { CompanyData } from "@/types/company";
 
@@ -33,6 +33,9 @@ interface CompaniesTableProps {
   };
   onPageChange: (page: number) => void;
   isLoading?: boolean;
+  showBulkSelection?: boolean;
+  selectedCompanyIds?: string[];
+  onSelectionChange?: (selectedIds: string[]) => void;
 }
 
 function formatRevenue(revenue?: number, formatted?: string): string {
@@ -59,52 +62,21 @@ function formatDate(dateString?: string): string {
   return new Date(dateString).toLocaleDateString();
 }
 
-function getCountryFromAddress(address?: any): string {
+function getCountryFromAddress(address?: string | { country?: string }): string {
   if (!address) return "-";
   if (typeof address === 'string') return address;
   return address.country || "-";
 }
 
-function SocialMediaIcons({ socialMedia }: { socialMedia?: any }) {
-  if (!socialMedia) return null;
-
-  return (
-    <div className="flex items-center space-x-2">
-      {socialMedia.linkedin && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 w-6 p-0 hover:bg-blue-900/20"
-          onClick={() => window.open(socialMedia.linkedin, '_blank')}
-        >
-          <Linkedin className="w-3 h-3 text-blue-400" />
-        </Button>
-      )}
-      {socialMedia.twitter && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 w-6 p-0 hover:bg-blue-900/20"
-          onClick={() => window.open(socialMedia.twitter, '_blank')}
-        >
-          <Twitter className="w-3 h-3 text-blue-400" />
-        </Button>
-      )}
-      {socialMedia.facebook && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 w-6 p-0 hover:bg-blue-900/20"
-          onClick={() => window.open(socialMedia.facebook, '_blank')}
-        >
-          <Facebook className="w-3 h-3 text-blue-400" />
-        </Button>
-      )}
-    </div>
-  );
-}
-
-export function CompaniesTable({ companies, pagination, onPageChange, isLoading }: CompaniesTableProps) {
+export function CompaniesTable({ 
+  companies, 
+  pagination, 
+  onPageChange, 
+  isLoading, 
+  showBulkSelection = false,
+  selectedCompanyIds = [],
+  onSelectionChange
+}: CompaniesTableProps) {
   const [selectedCompany, setSelectedCompany] = useState<CompanyData | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -112,6 +84,32 @@ export function CompaniesTable({ companies, pagination, onPageChange, isLoading 
     setSelectedCompany(company);
     setIsDialogOpen(true);
   };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (!onSelectionChange) return;
+    
+    if (checked) {
+      const allIds = companies.map(company => company.id).filter(Boolean) as string[];
+      onSelectionChange(allIds);
+    } else {
+      onSelectionChange([]);
+    }
+  };
+
+  const handleSelectCompany = (companyId: string, checked: boolean) => {
+    if (!onSelectionChange) return;
+    
+    if (checked) {
+      onSelectionChange([...selectedCompanyIds, companyId]);
+    } else {
+      onSelectionChange(selectedCompanyIds.filter(id => id !== companyId));
+    }
+  };
+
+  const isAllSelected = showBulkSelection && companies.length > 0 && 
+    companies.every(company => company.id && selectedCompanyIds.includes(company.id));
+  
+  const isSomeSelected = showBulkSelection && selectedCompanyIds.length > 0 && !isAllSelected;
 
   if (isLoading) {
     return (
@@ -145,6 +143,16 @@ export function CompaniesTable({ companies, pagination, onPageChange, isLoading 
         <Table>
           <TableHeader>
             <TableRow className="border-gray-800 hover:bg-gray-800/50">
+              {showBulkSelection && (
+                <TableHead className="text-gray-300 font-semibold w-12">
+                  <Checkbox
+                    checked={isAllSelected}
+                    indeterminate={isSomeSelected}
+                    onCheckedChange={handleSelectAll}
+                    className="ml-2"
+                  />
+                </TableHead>
+              )}
               <TableHead className="text-gray-300 font-semibold">Company</TableHead>
               <TableHead className="text-gray-300 font-semibold">Industry</TableHead>
               <TableHead className="text-gray-300 font-semibold">Employees</TableHead>
@@ -162,6 +170,17 @@ export function CompaniesTable({ companies, pagination, onPageChange, isLoading 
                 key={company.id || index}
                 className="border-gray-800 hover:bg-gray-800/30 transition-colors"
               >
+                {showBulkSelection && (
+                  <TableCell className="align-top w-12">
+                    {company.id && (
+                      <Checkbox
+                        checked={selectedCompanyIds.includes(company.id)}
+                        onCheckedChange={(checked) => company.id && handleSelectCompany(company.id, !!checked)}
+                        className="ml-2"
+                      />
+                    )}
+                  </TableCell>
+                )}
                 <TableCell className="align-top">
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2">

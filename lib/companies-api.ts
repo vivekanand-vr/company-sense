@@ -115,7 +115,6 @@ export async function exportCompaniesExcel(filters: CompaniesFilters = {}): Prom
     // Clean up the object URL
     URL.revokeObjectURL(link.href);
   } catch (error) {
-    console.error('Export failed:', error);
     throw error;
   }
 }
@@ -155,4 +154,51 @@ export async function exportAllCompaniesExcel(): Promise<void> {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+}
+
+// Bulk operations
+export async function exportSelectedCompaniesExcel(companyIds: string[]): Promise<void> {
+  const response = await authenticatedFetch(`${API_BASE}/companies/export/selected/excel`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ companyIds }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    throw new Error(`Export failed: ${response.status} ${response.statusText} - ${errorText}`);
+  }
+
+  // Get the blob from the response
+  const blob = await response.blob();
+  
+  // Create a temporary link and trigger download
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `selected_companies_${companyIds.length}_${new Date().toISOString().split('T')[0]}.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  // Clean up the object URL
+  URL.revokeObjectURL(link.href);
+}
+
+export async function bulkDeleteCompanies(companyIds: string[]): Promise<{ success: boolean; message: string; data?: { deletedCount: number; requestedCount: number } }> {
+  const response = await authenticatedFetch(`${API_BASE}/companies/bulk`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ companyIds }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Failed to delete companies' }));
+    throw new Error(error.message || "Failed to delete companies");
+  }
+
+  return response.json();
 }

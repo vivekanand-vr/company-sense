@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Search, Filter, Building2, Users, DollarSign, Calendar, ArrowLeft, Download, Upload } from "lucide-react";
+import { Search, Filter, Building2, Users, DollarSign, Calendar, ArrowLeft, Download, Trash2, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,8 +10,9 @@ import { CompaniesFilters } from "@/components/companies/CompaniesFilters";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { ProfileDropdown } from "@/components/auth/ProfileDropdown";
 import { CompanyData, Filters } from "@/types/company";
-import { fetchCompanies, exportCompaniesExcel } from "@/lib/companies-api";
+import { fetchCompanies, exportCompaniesExcel, exportSelectedCompaniesExcel, bulkDeleteCompanies } from "@/lib/companies-api";
 import { bulkLookup } from "@/lib/api";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 interface CompaniesFilters {
   search?: string;
@@ -53,6 +54,12 @@ export default function CompaniesPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Bulk selection state
+  const [showBulkSelection, setShowBulkSelection] = useState(false);
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([]);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Debounced search effect
   useEffect(() => {
@@ -102,11 +109,15 @@ export default function CompaniesPage() {
     if (newFilters.search !== searchTerm) {
       setSearchTerm(newFilters.search || '');
     }
+    // Clear selections when filters change
+    setSelectedCompanyIds([]);
     setFilters(newFilters);
     loadCompanies(1, newFilters);
   };
 
   const handlePageChange = (page: number) => {
+    // Clear selections when changing pages
+    setSelectedCompanyIds([]);
     loadCompanies(page);
   };
 
@@ -120,7 +131,6 @@ export default function CompaniesPage() {
       setError(undefined); // Clear any previous errors
       await exportCompaniesExcel(filters);
     } catch (err) {
-      console.error('Export failed:', err);
       setError(err instanceof Error ? err.message : 'Export failed');
     }
   };
@@ -157,6 +167,44 @@ export default function CompaniesPage() {
     }
   };
 
+  const handleSelectionChange = (newSelectedIds: string[]) => {
+    setSelectedCompanyIds(newSelectedIds);
+  };
+
+  const handleExportSelected = async () => {
+    if (selectedCompanyIds.length === 0) return;
+    
+    try {
+      setError(undefined);
+      await exportSelectedCompaniesExcel(selectedCompanyIds);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Export selected failed');
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedCompanyIds.length === 0) return;
+    setShowDeleteConfirmation(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      setIsDeleting(true);
+      setError(undefined);
+      
+      await bulkDeleteCompanies(selectedCompanyIds);
+      
+      // Clear selection and refresh the list
+      setSelectedCompanyIds([]);
+      setShowDeleteConfirmation(false);
+      loadCompanies(pagination.page, filters);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bulk delete failed');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-950 text-white">
@@ -178,6 +226,19 @@ export default function CompaniesPage() {
                 </p>
               </div>
               <div className="flex items-center space-x-3">
+                <Button
+                  onClick={() => {
+                    setShowBulkSelection(!showBulkSelection);
+                    if (showBulkSelection) {
+                      setSelectedCompanyIds([]);
+                    }
+                  }}
+                  variant="outline"
+                  className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                >
+                  <CheckCheck className="w-4 h-4 mr-2" />
+                  {showBulkSelection ? 'Exit Select Mode' : 'Select Companies'}
+                </Button>
                 <Button
                   onClick={handleExportFiltered}
                   className="bg-green-600 hover:bg-green-700 text-white"
@@ -321,12 +382,76 @@ export default function CompaniesPage() {
           </div>
         )}
 
+        {/* Selection Info Bar - Show when in select mode */}
+        {showBulkSelection && (
+          <div className={`${
+            selectedCompanyIds.length > 0 ? 'bg-blue-900/20 border-blue-800' : 'bg-gray-900/40 border-gray-700'
+          } border rounded-xl p-4 mb-6`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className={`w-8 h-8 rounded-full ${
+                  selectedCompanyIds.length > 0 ? 'bg-blue-900/40' : 'bg-gray-800'
+                } flex items-center justify-center`}>
+                  <span className={`text-sm font-semibold ${
+                    selectedCompanyIds.length > 0 ? 'text-blue-300' : 'text-gray-400'
+                  }`}>
+                    {selectedCompanyIds.length}
+                  </span>
+                </div>
+                <span className={`font-medium ${
+                  selectedCompanyIds.length > 0 ? 'text-blue-100' : 'text-gray-400'
+                }`}>
+                  {selectedCompanyIds.length === 0 
+                    ? 'No companies selected. Use checkboxes to select companies.' 
+                    : `${selectedCompanyIds.length} companies selected`
+                  }
+                </span>
+              </div>
+              {selectedCompanyIds.length > 0 && (
+                <div className="flex items-center space-x-3">
+                  <Button
+                    onClick={handleExportSelected}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Export Selected
+                  </Button>
+                  <Button
+                    onClick={handleDeleteSelected}
+                    variant="outline"
+                    className="border-red-600 text-red-400 hover:bg-red-900/20 hover:border-red-500"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Selected
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Companies Table */}
         <CompaniesTable
           companies={companies}
           pagination={pagination}
           onPageChange={handlePageChange}
           isLoading={isLoading}
+          showBulkSelection={showBulkSelection}
+          selectedCompanyIds={selectedCompanyIds}
+          onSelectionChange={handleSelectionChange}
+        />
+
+        {/* Delete Confirmation Dialog */}
+        <ConfirmationDialog
+          open={showDeleteConfirmation}
+          onOpenChange={setShowDeleteConfirmation}
+          title="Delete Selected Companies"
+          description={`Are you sure you want to delete ${selectedCompanyIds.length} selected companies? This action cannot be undone.`}
+          confirmText="Delete"
+          cancelText="Cancel"
+          onConfirm={confirmDelete}
+          isDestructive={true}
+          isLoading={isDeleting}
         />
         </div>
       </div>
