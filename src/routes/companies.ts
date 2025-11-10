@@ -7,6 +7,8 @@ import {
   exportCompaniesExcel,
   exportAllCompaniesExcel,
   exportCompaniesCSV,
+  exportSelectedCompaniesExcel,
+  bulkDeleteCompanies,
   listCompanies
 } from '../controllers/company.controller';
 
@@ -947,5 +949,151 @@ router.get('/export/all/excel', asyncHandler(exportAllCompaniesExcel));
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get('/export/csv', asyncHandler(exportCompaniesCSV));
+
+/**
+ * @swagger
+ * /api/companies/export/selected/excel:
+ *   post:
+ *     summary: Export selected companies to Excel file
+ *     description: Export specific companies by their IDs to an Excel file with comprehensive data and summary statistics.
+ *     tags:
+ *       - Companies Export
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - companyIds
+ *             properties:
+ *               companyIds:
+ *                 type: array
+ *                 description: Array of company IDs to export
+ *                 items:
+ *                   type: string
+ *                 minItems: 1
+ *                 maxItems: 500
+ *                 example: ["cm3e2rf1k0001gzq8zq8zq8zq", "cm3e2rf1k0002gzq8zq8zq8zr"]
+ *           examples:
+ *             selected-companies:
+ *               summary: Export selected companies
+ *               value:
+ *                 companyIds: ["cm3e2rf1k0001gzq8zq8zq8zq", "cm3e2rf1k0002gzq8zq8zq8zr", "cm3e2rf1k0003gzq8zq8zq8zs"]
+ *     responses:
+ *       200:
+ *         description: Excel file download
+ *         content:
+ *           application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *         headers:
+ *           Content-Disposition:
+ *             description: Attachment filename
+ *             schema:
+ *               type: string
+ *               example: 'attachment; filename="selected_companies_3_2024-11-08.xlsx"'
+ *       400:
+ *         description: Invalid request (missing or invalid company IDs)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: No companies found with provided IDs
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Export failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/export/selected/excel', optionalAuth, asyncHandler(exportSelectedCompaniesExcel));
+
+// Debug route to test if this section is working
+router.post('/debug-test', optionalAuth, asyncHandler(async (req, res) => {
+  res.json({ message: 'Debug route working', timestamp: new Date().toISOString() });
+}));
+
+/**
+ * @swagger
+ * /api/companies/bulk:
+ *   delete:
+ *     summary: Bulk delete selected companies
+ *     description: Delete multiple companies by their IDs in a single atomic transaction. All deletions succeed or fail together.
+ *     tags:
+ *       - Companies Management
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - companyIds
+ *             properties:
+ *               companyIds:
+ *                 type: array
+ *                 description: Array of company IDs to delete
+ *                 items:
+ *                   type: string
+ *                 minItems: 1
+ *                 maxItems: 500
+ *                 example: ["cm3e2rf1k0001gzq8zq8zq8zq", "cm3e2rf1k0002gzq8zq8zq8zr"]
+ *           examples:
+ *             bulk-delete:
+ *               summary: Delete selected companies
+ *               value:
+ *                 companyIds: ["cm3e2rf1k0001gzq8zq8zq8zq", "cm3e2rf1k0002gzq8zq8zq8zr", "cm3e2rf1k0003gzq8zq8zq8zs"]
+ *     responses:
+ *       200:
+ *         description: Companies deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Successfully deleted 3 companies"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     deletedCount:
+ *                       type: number
+ *                       description: Number of companies actually deleted
+ *                       example: 3
+ *                     requestedCount:
+ *                       type: number
+ *                       description: Number of companies requested for deletion
+ *                       example: 3
+ *       400:
+ *         description: Invalid request (missing or invalid company IDs)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: No companies found with provided IDs
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Bulk deletion failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.delete('/bulk', optionalAuth, asyncHandler(bulkDeleteCompanies));
 
 export default router;

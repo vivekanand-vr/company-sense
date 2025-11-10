@@ -423,6 +423,151 @@ export class ExcelExportService {
     summaryData.forEach(row => worksheet.addRow(row));
   }
 
+  /**
+   * Export selected companies by IDs to Excel file
+   * @param companyIds - Array of company IDs to export
+   * @returns Promise<Buffer> - Excel file buffer
+   */
+  async exportSelectedCompanies(companyIds: string[]): Promise<Buffer> {
+    try {
+      logger.info('Starting selected companies Excel export', { 
+        companyCount: companyIds.length,
+        sampleIds: companyIds.slice(0, 3)
+      });
+
+      // Query companies by IDs
+      const companies = await prisma.company.findMany({
+        where: {
+          id: {
+            in: companyIds
+          }
+        },
+        orderBy: { lastUpdated: 'desc' }
+      });
+      
+      if (companies.length === 0) {
+        throw new Error('No companies found with the specified IDs');
+      }
+
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Selected Companies');
+
+      // Define columns (same as exportFilteredCompanies)
+      worksheet.columns = [
+        { header: 'Company Name', key: 'name', width: 25 },
+        { header: 'Domain', key: 'domain', width: 20 },
+        { header: 'Website', key: 'website', width: 30 },
+        { header: 'Industry', key: 'industry', width: 20 },
+        { header: 'Description', key: 'description', width: 50 },
+        { header: 'Founded Year', key: 'foundedYear', width: 15 },
+        { header: 'Employees', key: 'employees', width: 15 },
+        { header: 'Annual Revenue', key: 'revenue', width: 20 },
+        { header: 'Revenue (Formatted)', key: 'annualRevenueFormatted', width: 20 },
+        { header: 'Phone', key: 'phone', width: 20 },
+        { header: 'CEO', key: 'ceo', width: 25 },
+        { header: 'Business Model', key: 'businessModel', width: 30 },
+        { header: 'Key Products', key: 'keyProducts', width: 40 },
+        { header: 'Stock Symbol', key: 'stockSymbol', width: 15 },
+        { header: 'Public Trading', key: 'publiclyTraded', width: 15 },
+        { header: 'Street Address', key: 'streetAddress', width: 30 },
+        { header: 'City', key: 'city', width: 20 },
+        { header: 'State', key: 'state', width: 15 },
+        { header: 'Country', key: 'country', width: 15 },
+        { header: 'LinkedIn', key: 'linkedinUrl', width: 40 },
+        { header: 'Twitter', key: 'twitterUrl', width: 40 },
+        { header: 'Technologies', key: 'technologies', width: 40 },
+        { header: 'Apollo Source', key: 'apolloSource', width: 15 },
+        { header: 'ChatGPT Source', key: 'chatgptSource', width: 15 },
+        { header: 'Enrichment Score', key: 'enrichmentScore', width: 18 },
+        { header: 'Last Updated', key: 'lastUpdated', width: 20 }
+      ];
+
+      // Style header
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE1F5FE' }
+      };
+
+      // Add company data
+      companies.forEach(company => {
+        const row = worksheet.addRow({
+          name: company.name || '',
+          domain: company.domain || '',
+          website: company.website || '',
+          industry: company.industry || '',
+          description: company.description || '',
+          foundedYear: company.foundedYear || '',
+          employees: company.employees || '',
+          revenue: company.revenue ? Number(company.revenue) : '',
+          annualRevenueFormatted: company.annualRevenueFormatted || '',
+          phone: company.phone || '',
+          ceo: company.ceo || '',
+          businessModel: company.businessModel || '',
+          keyProducts: Array.isArray(company.keyProducts) ? (company.keyProducts as string[]).join(', ') : '',
+          stockSymbol: company.stockSymbol || '',
+          publiclyTraded: company.publiclyTraded ? 'Yes' : 'No',
+          streetAddress: company.streetAddress || '',
+          city: company.city || '',
+          state: company.state || '',
+          country: company.country || '',
+          linkedinUrl: company.linkedinUrl || '',
+          twitterUrl: company.twitterUrl || '',
+          technologies: Array.isArray(company.technologies) ? (company.technologies as string[]).join(', ') : '',
+          apolloSource: company.apolloSource ? 'Yes' : 'No',
+          chatgptSource: company.chatgptSource ? 'Yes' : 'No',
+          enrichmentScore: company.enrichmentScore ? Number(company.enrichmentScore) : '',
+          lastUpdated: company.lastUpdated ? new Date(company.lastUpdated).toLocaleString() : ''
+        });
+
+        // Format revenue cell if it exists
+        if (company.revenue) {
+          const revenueCell = row.getCell('revenue');
+          revenueCell.numFmt = '#,##0';
+        }
+      });
+
+      // Add summary worksheet
+      const summaryWorksheet = workbook.addWorksheet('Export Summary');
+      
+      // Add export information
+      const exportInfo = [
+        { metric: 'Export Type', value: 'Selected Companies' },
+        { metric: 'Export Date', value: new Date().toLocaleDateString() },
+        { metric: 'Export Time', value: new Date().toLocaleTimeString() },
+        { metric: 'Requested Companies', value: companyIds.length },
+        { metric: 'Found Companies', value: companies.length },
+        { metric: 'Missing Companies', value: companyIds.length - companies.length }
+      ];
+
+      summaryWorksheet.columns = [
+        { header: 'Metric', key: 'metric', width: 25 },
+        { header: 'Value', key: 'value', width: 20 }
+      ];
+
+      summaryWorksheet.getRow(1).font = { bold: true };
+      exportInfo.forEach(row => summaryWorksheet.addRow(row));
+
+      // Generate buffer
+      const buffer = await workbook.xlsx.writeBuffer();
+      
+      logger.info('Selected companies Excel export completed', {
+        companyCount: companies.length,
+        bufferSize: buffer.byteLength
+      });
+
+      return buffer as unknown as Buffer;
+      
+    } catch (error) {
+      logger.error('Selected companies Excel export failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        companyIds: companyIds.slice(0, 5) // Log first 5 IDs for debugging
+      });
+      throw error;
+    }
+  }
+
   private escapeCsvValue(value: any): string {
     if (!value) return '';
     

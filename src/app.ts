@@ -48,6 +48,7 @@ app.use(express.urlencoded({
 app.use(requestLogger);
 
 // Rate limiting
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
 app.use(rateLimiterMiddleware());
 
 // Setup Swagger documentation

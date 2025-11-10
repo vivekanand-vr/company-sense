@@ -48,8 +48,15 @@ export const lookupSchema = z.object({
 export const bulkSchema = z.object({
   names: z.array(
     z.string().min(1, 'Company name cannot be empty').max(255, 'Company name too long')
-  ).min(1, 'At least one company name required').max(100, 'Too many companies (max 100)'),
+  ).min(1, 'At least one company name is required').max(100, 'Maximum 100 companies per bulk request'),
   hints: hintsSchema,
+});
+
+// Bulk selected operations schema (for export/delete)
+export const bulkSelectedSchema = z.object({
+  companyIds: z.array(
+    z.string().min(1, 'Company ID cannot be empty')
+  ).min(1, 'At least one company ID is required').max(500, 'Maximum 500 companies per bulk operation'),
 });
 
 // Type inference for request bodies

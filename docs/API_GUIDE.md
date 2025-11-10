@@ -523,7 +523,96 @@ axios.interceptors.response.use(
 
 **Response:** Binary file download
 
-### 5. Health Check API
+### 5. **NEW** - Bulk Operations APIs
+
+#### 5.1. Export Selected Companies
+**POST** `/api/companies/export/selected/excel`
+
+**Description:** Export specific companies by their IDs to an Excel file with comprehensive data and summary statistics.
+
+**Request Body:**
+```json
+{
+  "companyIds": [
+    "cm3e2rf1k0001gzq8zq8zq8zq",
+    "cm3e2rf1k0002gzq8zq8zq8zr", 
+    "cm3e2rf1k0003gzq8zq8zq8zs"
+  ]
+}
+```
+
+**Response Headers:**
+- `Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+- `Content-Disposition: attachment; filename="selected_companies_3_2024-11-08.xlsx"`
+
+**Response:** Binary Excel file download
+
+**Usage Example:**
+```bash
+curl -X POST "http://localhost:8000/api/companies/export/selected/excel" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{
+    "companyIds": ["company-id-1", "company-id-2", "company-id-3"]
+  }' \
+  --output "selected-companies.xlsx"
+```
+
+#### 5.2. Bulk Delete Companies
+**DELETE** `/api/companies/bulk`
+
+**Description:** Delete multiple companies by their IDs in a single atomic transaction. All deletions succeed or fail together.
+
+**Request Body:**
+```json
+{
+  "companyIds": [
+    "cm3e2rf1k0001gzq8zq8zq8zq",
+    "cm3e2rf1k0002gzq8zq8zq8zr",
+    "cm3e2rf1k0003gzq8zq8zq8zs"
+  ]
+}
+```
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "message": "Successfully deleted 3 companies",
+  "data": {
+    "deletedCount": 3,
+    "requestedCount": 3
+  }
+}
+```
+
+**Error Response (No companies found):**
+```json
+{
+  "success": false,
+  "message": "No companies found with the provided IDs"
+}
+```
+
+**Usage Example:**
+```bash
+curl -X DELETE "http://localhost:8000/api/companies/bulk" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{
+    "companyIds": ["company-id-1", "company-id-2", "company-id-3"]
+  }'
+```
+
+**Bulk Operations Features:**
+- **Atomic Transactions**: All operations succeed or fail together
+- **ID Validation**: Validates company IDs before processing
+- **Progress Tracking**: Detailed logging and response data
+- **Error Handling**: Comprehensive error messages and rollback
+- **Batch Limits**: Maximum 500 companies per bulk operation
+- **Export Summary**: Excel exports include summary worksheets with operation details
+
+### 6. Health Check API
 
 **Endpoint:** `GET /health`
 

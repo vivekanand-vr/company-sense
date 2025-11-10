@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { logger } from '../lib/logger';
 import { CompanyService } from '../services/company.service';
 import { ExcelExportService } from '../services/excel-export.service';
+import { bulkSelectedSchema } from '../schemas/companies';
+import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 
 // Validation schemas
@@ -483,6 +485,148 @@ export const listCompanies = async (req: Request, res: Response): Promise<void> 
       success: false,
       message: errorMessage,
       processingTimeMs
+    });
+  }
+};
+
+/**
+ * Export selected companies to Excel by IDs
+ */
+export const exportSelectedCompaniesExcel = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Validate request body
+    const validation = bulkSelectedSchema.safeParse(req.body);
+    
+    if (!validation.success) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid request data',
+        errors: validation.error.errors
+      });
+      return;
+    }
+
+    const { companyIds } = validation.data;
+    
+    logger.info('Selected companies Excel export initiated', { 
+      companyIds: companyIds.length,
+      sampleIds: companyIds.slice(0, 3)
+    });
+    
+    const buffer = await excelExportService.exportSelectedCompanies(companyIds);
+    
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `selected_companies_${companyIds.length}_${timestamp}.xlsx`;
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', buffer.length);
+    
+    res.send(buffer);
+    
+    logger.info('Selected companies Excel export completed successfully', { 
+      filename,
+      companyCount: companyIds.length,
+      bufferSize: buffer.length 
+    });
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    logger.error('Selected companies Excel export failed', { 
+      error: errorMessage,
+      companyIds: req.body.companyIds
+    });
+
+    res.status(500).json({
+      success: false,
+      message: `Selected companies export failed: ${errorMessage}`
+    });
+  }
+};
+
+/**
+ * Bulk delete selected companies by IDs
+ */
+export const bulkDeleteCompanies = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Validate request body
+    const validation = bulkSelectedSchema.safeParse(req.body);
+    
+    if (!validation.success) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid request data',
+        errors: validation.error.errors
+      });
+      return;
+    }
+
+    const { companyIds } = validation.data;
+    
+    logger.info('Bulk company deletion initiated', { 
+      companyIds: companyIds.length,
+      sampleIds: companyIds.slice(0, 3)
+    });
+
+    // Use a transaction to ensure all deletions are atomic
+    const deletedCount = await prisma.$transaction(async (tx) => {
+      // First, check which companies exist
+      const existingCompanies = await tx.company.findMany({
+        where: {
+          id: {
+            in: companyIds
+          }
+        },
+        select: {
+          id: true,
+          name: true
+        }
+      });
+
+      if (existingCompanies.length === 0) {
+        throw new Error('No companies found with the provided IDs');
+      }
+
+      // Delete all companies in a single operation
+      const deleteResult = await tx.company.deleteMany({
+        where: {
+          id: {
+            in: companyIds
+          }
+        }
+      });
+
+      logger.info('Companies deleted successfully', {
+        requestedCount: companyIds.length,
+        foundCount: existingCompanies.length,
+        deletedCount: deleteResult.count,
+        deletedCompanies: existingCompanies.map(c => ({ id: c.id, name: c.name }))
+      });
+
+      return deleteResult.count;
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully deleted ${deletedCount} companies`,
+      data: {
+        deletedCount,
+        requestedCount: companyIds.length
+      }
+    });
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    logger.error('Bulk company deletion failed', { 
+      error: errorMessage,
+      companyIds: req.body.companyIds
+    });
+
+    res.status(500).json({
+      success: false,
+      message: `Bulk deletion failed: ${errorMessage}`
     });
   }
 };

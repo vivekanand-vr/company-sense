@@ -423,6 +423,86 @@ curl "http://localhost:8000/api/companies/export/csv?industry=fintech&minEmploye
   --output "fintech-companies.csv"
 ```
 
+### 🎯 **NEW** - Bulk Operations API
+
+#### 7. **NEW** - Export Selected Companies (Excel)
+**POST** `/api/companies/export/selected/excel`
+
+Export specific companies by their IDs with comprehensive data and summary statistics. Perfect for frontend checkbox selection features.
+
+```bash
+# Export selected companies by IDs
+curl -X POST "http://localhost:8000/api/companies/export/selected/excel" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{
+    "companyIds": ["company-id-1", "company-id-2", "company-id-3"]
+  }' \
+  --output "selected-companies.xlsx"
+```
+
+**Request Body:**
+```json
+{
+  "companyIds": [
+    "cm3e2rf1k0001gzq8zq8zq8zq",
+    "cm3e2rf1k0002gzq8zq8zq8zr",
+    "cm3e2rf1k0003gzq8zq8zq8zs"
+  ]
+}
+```
+
+**Features:**
+- ✅ **Batch Export**: Export up to 500 companies per request
+- 📊 **Summary Statistics**: Includes export summary worksheet
+- 🔍 **ID Validation**: Validates all company IDs before processing
+- 📁 **Rich Formatting**: Professional Excel formatting with multiple worksheets
+
+#### 8. **NEW** - Bulk Delete Companies
+**DELETE** `/api/companies/bulk`
+
+Delete multiple companies in a single atomic transaction. All deletions succeed or fail together.
+
+```bash
+# Bulk delete selected companies
+curl -X DELETE "http://localhost:8000/api/companies/bulk" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{
+    "companyIds": ["company-id-1", "company-id-2", "company-id-3"]
+  }'
+```
+
+**Request Body:**
+```json
+{
+  "companyIds": [
+    "cm3e2rf1k0001gzq8zq8zq8zq",
+    "cm3e2rf1k0002gzq8zq8zq8zr",
+    "cm3e2rf1k0003gzq8zq8zq8zs"
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Successfully deleted 3 companies",
+  "data": {
+    "deletedCount": 3,
+    "requestedCount": 3
+  }
+}
+```
+
+**Features:**
+- ⚡ **Atomic Transactions**: All operations succeed or fail together
+- 🔒 **Safety Validation**: Validates company IDs before deletion
+- 📊 **Progress Tracking**: Detailed response with deletion counts
+- 🛡️ **Error Handling**: Comprehensive error messages and rollback
+- 📋 **Batch Processing**: Delete up to 500 companies per request
+
 ### 📚 **NEW** - Interactive API Documentation
 **GET** `/api-docs`
 
