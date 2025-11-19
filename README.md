@@ -22,6 +22,7 @@ The Company Sense Platform frontend is built with Next.js 14+ and React, offerin
   - **Advanced Filtering**: Industry, employee count, revenue, country filters
   - **Pagination**: Navigate through large datasets
   - **Export Capabilities**: Export filtered results to Excel format
+- **Real-time Job Monitoring**: WebSocket-powered live progress tracking with automatic fallback to REST API
 - **Real-time Results**: Live display of company data with confidence scores and source tracking
 - **File Format Support**: CSV, XLSX, and XLS file formats with intelligent column detection
 - **Responsive Design**: Mobile-first design with Tailwind CSS and dark theme
@@ -99,6 +100,9 @@ company-sense-ui/
 │   ├── page.tsx                 # Main application page (Search & Bulk Upload)
 │   ├── companies/               # Companies database browser
 │   │   └── page.tsx            # Companies listing with advanced filtering
+│   ├── jobs/                    # Real-time job monitoring
+│   │   └── [id]/
+│   │       └── page.tsx        # WebSocket job status page
 │   └── api/                     # API routes (proxy to backend)
 │       └── companies/
 │           ├── lookup/
@@ -109,6 +113,11 @@ company-sense-ui/
 │   ├── companies/               # Companies database components
 │   │   ├── CompaniesTable.tsx  # Companies listing table
 │   │   └── CompaniesFilters.tsx # Advanced filtering interface
+│   ├── jobs/                    # Real-time job monitoring components
+│   │   ├── JobProgressIndicator.tsx  # Live progress display
+│   │   ├── JobLogs.tsx         # Real-time activity logs
+│   │   ├── JobResults.tsx      # Job completion results
+│   │   └── WebSocketStatus.tsx # Connection status indicator
 │   ├── results/                 # Result display components
 │   │   ├── ProgressIndicator.tsx
 │   │   └── ResultsTable.tsx
@@ -124,6 +133,8 @@ company-sense-ui/
 │   │   └── table.tsx
 │   └── upload/                  # File upload components
 │       └── BulkUploadDialog.tsx
+├── hooks/                       # Custom React hooks
+│   └── useJobMonitor.ts        # WebSocket job monitoring hook
 ├── lib/                         # Utility libraries
 │   ├── api.ts                   # Main API client functions
 │   ├── companies-api.ts         # Companies database API functions
@@ -282,14 +293,72 @@ type CompanyData = {
 4. Response converted to legacy format for table display
 5. Results displayed in ResultsTable with confidence scores
 
-### Bulk Processing
+### Bulk Processing with Real-time Monitoring
 1. User uploads CSV/Excel file via BulkUploadDialog
 2. File parsed locally using `parseCSV()` or `parseExcel()`
 3. Column mapping interface for company name selection
 4. Preview shows first 10 companies, but all data sent to backend
-5. Bulk API call made via `bulkLookup()` function
-6. Results processed and displayed in batches
-7. Summary statistics shown for successful/failed processing
+5. Bulk API call made via `bulkLookup()` function returns job ID immediately
+6. User redirected to `/jobs/[id]` page for real-time monitoring
+7. WebSocket connection established using `useJobMonitor` hook
+8. Real-time updates received for job progress, messages, and completion
+9. Live activity logs and progress indicators updated in real-time
+10. Final results displayed upon job completion with comprehensive statistics
+
+## Real-time Job Monitoring System
+
+The application features a sophisticated WebSocket-based job monitoring system for tracking bulk processing operations in real-time.
+
+### WebSocket Implementation
+
+#### Job Monitoring Hook (`hooks/useJobMonitor.ts`)
+- **Real-time Connection Management**: Automatic WebSocket connection with Socket.IO
+- **Event-driven Updates**: Live job progress, status changes, and activity messages
+- **Automatic Fallback**: Graceful degradation to REST API polling if WebSocket fails
+- **Connection Recovery**: Auto-reconnection with exponential backoff strategy
+- **Type-safe Events**: Fully typed WebSocket events and job state management
+
+#### Key Features
+- **Live Progress Tracking**: Real-time progress bars showing completion status
+- **Activity Logs**: Streaming activity messages with timestamps and log levels
+- **Connection Status**: Visual indicators for WebSocket connection state
+- **Error Handling**: Comprehensive error recovery and user feedback
+- **Job Lifecycle Management**: Complete job state from creation to completion
+
+#### WebSocket Events
+```typescript
+// Job progress updates
+'job-progress': { jobId: string; progress: JobProgress }
+
+// Activity messages  
+'job-message': { jobId: string; message: JobMessage }
+
+// Job status changes
+'job-update': { jobId: string; job: Job }
+
+// Job completion
+'job-completed': { jobId: string; job: Job }
+```
+
+### Job Monitoring Components
+
+#### JobProgressIndicator (`components/jobs/JobProgressIndicator.tsx`)
+- **Live Progress Display**: Real-time progress bars and completion percentages
+- **Status Visualization**: Color-coded job status indicators
+- **Connection Status**: WebSocket connection health indicators
+- **Manual Controls**: Refresh and reconnection capabilities
+
+#### JobLogs (`components/jobs/JobLogs.tsx`)
+- **Streaming Activity Logs**: Real-time activity messages with auto-scroll
+- **Log Level Filtering**: Filter by info, success, warning, error levels
+- **Timestamp Display**: Precise timing for all job activities
+- **Auto-refresh**: Live updates without page reload
+
+#### WebSocketStatus (`components/jobs/WebSocketStatus.tsx`)
+- **Connection Indicators**: Live, Connecting, Offline, Error states
+- **Fallback Mode Display**: Shows when using REST API fallback
+- **Reconnection Controls**: Manual reconnection capabilities
+- **Status Descriptions**: Clear connection status messaging
 
 ### File Processing Logic
 
@@ -368,7 +437,9 @@ npm start
 
 ### Environment Variables
 ```env
-BACKEND_API_URL=http://localhost:8000  # Backend API URL
+BACKEND_API_URL=http://localhost:8000              # Backend API URL
+NEXT_PUBLIC_BACKEND_URL=http://localhost:8000/api  # Public backend URL
+NEXT_PUBLIC_WEBSOCKET_URL=http://localhost:8000    # WebSocket server URL
 ```
 
 ### Key Scripts

@@ -203,8 +203,6 @@ export function BulkUploadDialog({ onUpload, hints }: BulkUploadDialogProps) {
       alert('No companies in the selected range');
       return;
     }
-
-    console.log(`Frontend: Sending ${namesToSend.length} companies (mode: ${uploadMode}) to backend:`, namesToSend.slice(0, 5), '...');
     onUpload(namesToSend, filters);
     setIsOpen(false);
     resetState();

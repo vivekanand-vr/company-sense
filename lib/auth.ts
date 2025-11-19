@@ -43,7 +43,7 @@ export function clearStoredAuth() {
 
 // API functions
 export async function login(credentials: LoginCredentials): Promise<AuthResponse> {
-  const response = await fetch(`${API_BASE}/api/auth/login`, {
+  const response = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -72,7 +72,7 @@ export async function verifyToken(): Promise<VerifyResponse> {
     throw new Error('No token found');
   }
 
-  const response = await fetch(`${API_BASE}/api/auth/verify`, {
+  const response = await fetch(`${API_BASE}/auth/verify`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -120,7 +120,7 @@ export async function refreshToken(): Promise<RefreshResponse> {
     throw new Error('No token found');
   }
 
-  const response = await fetch(`${API_BASE}/api/auth/refresh`, {
+  const response = await fetch(`${API_BASE}/auth/refresh`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -147,7 +147,7 @@ export async function logout(): Promise<LogoutResponse> {
   
   try {
     if (token) {
-      const response = await fetch(`${API_BASE}/api/auth/logout`, {
+      const response = await fetch(`${API_BASE}/auth/logout`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

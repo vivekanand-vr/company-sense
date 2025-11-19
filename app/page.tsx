@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Download, Search, Upload, Zap, List } from "lucide-react";
 import { SearchBar } from "@/components/search/SearchBar";
 import { OptionalFilters } from "@/components/search/OptionalFilters";
@@ -12,9 +13,11 @@ import { Button } from "@/components/ui/button";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { ProfileDropdown } from "@/components/auth/ProfileDropdown";
 import { lookupCompany, bulkLookup, exportToExcel } from "@/lib/api";
+import { startBulkLookupJob } from "@/lib/companies-api";
 import { LookupRequest, Filters, CompanyResultRow } from "@/types/company";
 
 export default function Home() {
+  const router = useRouter();
   const [filters, setFilters] = useState<Filters>({});
   const [error, setError] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
@@ -46,18 +49,24 @@ export default function Home() {
 
   const handleBulkUpload = async (names: string[], uploadFilters?: Filters) => {
     try {
-      const startTime = Date.now();
       setError(undefined);
       setSuccessMessage(undefined);
       setIsLoading(true);
-      const response = await bulkLookup({ companies: names, filters: uploadFilters });
-      const endTime = Date.now();
-      setProcessingTime((endTime - startTime) / 1000);
-      setResults(response.results);
-      setSuccessMessage(response.message || `Successfully processed ${response.processed} companies`);
+
+      // Start the job-based bulk lookup
+      const response = await startBulkLookupJob({ 
+        companies: names, 
+        filters: uploadFilters 
+      });
+
+      if (response.success) {
+        // Redirect to the job status page with WebSocket monitoring
+        router.push(`/jobs/${response.data.jobId}`);
+      } else {
+        throw new Error(response.message || "Failed to start bulk lookup job");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
       setIsLoading(false);
     }
   };

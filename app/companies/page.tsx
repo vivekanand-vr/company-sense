@@ -210,7 +210,18 @@ export default function CompaniesPage() {
       <div className="min-h-screen bg-gray-950 text-white">
         <div className="container mx-auto px-4 py-8 max-w-7xl">
           {/* Top Navigation */}
-          <div className="flex justify-end mb-6">
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center space-x-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.href = '/jobs'}
+                className="bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
+              >
+                <Building2 className="w-4 h-4 mr-2" />
+                View Jobs
+              </Button>
+            </div>
             <ProfileDropdown />
           </div>
 

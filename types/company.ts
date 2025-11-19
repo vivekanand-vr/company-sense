@@ -175,5 +175,81 @@ export type CompanyResultRow = {
   };
 };
 
+// Job-related types for bulk operations with real-time progress
+export interface JobProgress {
+  total: number;
+  completed: number;
+  successful: number;
+  failed: number;
+  current?: string;
+}
+
+export interface JobMessage {
+  timestamp: string;
+  level: 'info' | 'success' | 'warning' | 'error';
+  message: string;
+  companyName?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface Job {
+  id: string;
+  type: 'bulk_lookup';
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  progress: JobProgress;
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  result?: BulkResponse['data'];
+  error?: string;
+}
+
+export interface JobResponse {
+  success: boolean;
+  data: {
+    job: Job;
+    messages?: {
+      items: JobMessage[];
+      hasMore: boolean;
+      lastIndex: number;
+    };
+  };
+  message?: string;
+}
+
+export interface JobStartResponse {
+  success: boolean;
+  message: string;
+  data: {
+    jobId: string;
+    companiesCount: number;
+    appliedFilters: Filters;
+    statusEndpoint: string;
+  };
+}
+
+export interface JobListResponse {
+  success: boolean;
+  data: {
+    jobs: Job[];
+    statistics: {
+      total: number;
+      running: number;
+      completed: number;
+      failed: number;
+      pending: number;
+    };
+  };
+}
+
+export interface MessagesResponse {
+  success: boolean;
+  data: {
+    messages: JobMessage[];
+    hasMore: boolean;
+    lastIndex: number;
+  };
+}
+
 // Legacy type aliases for backward compatibility
 export type Hints = Filters;

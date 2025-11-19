@@ -1,4 +1,4 @@
-import { CompanyData } from "@/types/company";
+import { CompanyData, Job, JobResponse, JobStartResponse, JobListResponse, MessagesResponse, BulkRequest } from "@/types/company";
 import { authenticatedFetch } from "@/lib/auth";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000/api';
@@ -198,6 +198,81 @@ export async function bulkDeleteCompanies(companyIds: string[]): Promise<{ succe
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Failed to delete companies' }));
     throw new Error(error.message || "Failed to delete companies");
+  }
+
+  return response.json();
+}
+
+// Job-related API functions
+export async function startBulkLookupJob(request: BulkRequest): Promise<JobStartResponse> {
+  const response = await authenticatedFetch(`${API_BASE}/companies/bulk-lookup`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Failed to start bulk lookup job' }));
+    throw new Error(error.message || "Failed to start bulk lookup job");
+  }
+
+  return response.json();
+}
+
+export async function getJobDetails(jobId: string, messagesSince: number = 0): Promise<JobResponse> {
+  const response = await authenticatedFetch(`${API_BASE}/companies/jobs/${jobId}?messagesSince=${messagesSince}`);
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Failed to fetch job details' }));
+    throw new Error(error.message || "Failed to fetch job details");
+  }
+
+  return response.json();
+}
+
+export async function getJobStatus(jobId: string): Promise<{ success: boolean; data: Job }> {
+  const response = await authenticatedFetch(`${API_BASE}/companies/jobs/${jobId}/status`);
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Failed to fetch job status' }));
+    throw new Error(error.message || "Failed to fetch job status");
+  }
+
+  return response.json();
+}
+
+export async function getJobMessages(jobId: string, since: number = 0): Promise<MessagesResponse> {
+  const response = await authenticatedFetch(`${API_BASE}/companies/jobs/${jobId}/messages?since=${since}`);
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Failed to fetch job messages' }));
+    throw new Error(error.message || "Failed to fetch job messages");
+  }
+
+  return response.json();
+}
+
+export async function listJobs(): Promise<JobListResponse> {
+  const response = await authenticatedFetch(`${API_BASE}/companies/jobs`);
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Failed to fetch jobs list' }));
+    throw new Error(error.message || "Failed to fetch jobs list");
+  }
+
+  return response.json();
+}
+
+export async function cancelJob(jobId: string): Promise<{ success: boolean; message: string }> {
+  const response = await authenticatedFetch(`${API_BASE}/companies/jobs/${jobId}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Failed to cancel job' }));
+    throw new Error(error.message || "Failed to cancel job");
   }
 
   return response.json();

@@ -46,7 +46,6 @@ export function parseExcel(file: File, sheetName?: string): Promise<ExcelParseRe
         
         // Get all sheet names
         const sheets = workbook.SheetNames;
-        console.log('Available sheets:', sheets);
         
         if (sheets.length === 0) {
           reject(new Error("No sheets found in the file"));
@@ -97,14 +96,6 @@ export function parseExcel(file: File, sheetName?: string): Promise<ExcelParseRe
             return obj;
           })
           .filter(row => Object.values(row).some(value => value && String(value).trim())); // Filter out rows with no data
-        
-        console.log('Parsed Excel data:', { 
-          sheets, 
-          currentSheet: targetSheetName, 
-          headers, 
-          rowCount: dataRows.length, 
-          sampleRow: dataRows[0] 
-        });
         
         resolve({ 
           headers, 
