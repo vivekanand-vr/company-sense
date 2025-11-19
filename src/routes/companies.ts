@@ -4,12 +4,19 @@ import { optionalAuth } from '../middlewares/auth';
 import { 
   lookupCompany, 
   bulkLookupCompanies,
+  bulkLookupCompaniesSync,
   exportCompaniesExcel,
   exportAllCompaniesExcel,
   exportCompaniesCSV,
   exportSelectedCompaniesExcel,
   bulkDeleteCompanies,
-  listCompanies
+  listCompanies,
+  getJobStatus,
+  getJobMessages,
+  getJobDetails,
+  listJobs,
+  cancelJob,
+  getWebSocketStats
 } from '../controllers/company.controller';
 
 const router = Router();
@@ -782,6 +789,39 @@ router.post('/bulk-lookup', asyncHandler(bulkLookupCompanies));
 
 /**
  * @swagger
+ * /api/companies/bulk-lookup-sync:
+ *   post:
+ *     summary: Synchronous Bulk Company Lookup (Legacy)
+ *     description: |
+ *       Legacy synchronous version of bulk lookup for backward compatibility.
+ *       This endpoint waits for all companies to be processed before returning results.
+ *       For better user experience, use the job-based `/bulk-lookup` endpoint instead.
+ *     tags: [Company Intelligence]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - companies
+ *             properties:
+ *               companies:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Array of company names to lookup
+ *                 example: ["Apple Inc", "Microsoft", "Google"]
+ *               filters:
+ *                 $ref: '#/components/schemas/CompanyFilters'
+ *     responses:
+ *       200:
+ *         description: Bulk lookup completed
+ */
+router.post('/bulk-lookup-sync', asyncHandler(bulkLookupCompaniesSync));
+
+/**
+ * @swagger
  * /api/companies/export/excel:
  *   get:
  *     summary: Export Filtered Companies to Excel
@@ -1095,5 +1135,178 @@ router.post('/debug-test', optionalAuth, asyncHandler(async (req, res) => {
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.delete('/bulk', optionalAuth, asyncHandler(bulkDeleteCompanies));
+
+// Job Management Routes
+/**
+ * @swagger
+ * /api/companies/jobs/{jobId}:
+ *   get:
+ *     summary: Get Job Details with Messages
+ *     description: |
+ *       Get comprehensive job status including progress, messages, and results.
+ *       Use this endpoint for detailed job monitoring with real-time messages.
+ *     tags: [Job Management]
+ *     parameters:
+ *       - in: path
+ *         name: jobId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Job ID returned from bulk lookup
+ *       - in: query
+ *         name: messagesSince
+ *         schema:
+ *           type: integer
+ *         description: Get messages after this index (for polling)
+ *     responses:
+ *       200:
+ *         description: Job details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     job:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                         status:
+ *                           type: string
+ *                           enum: [pending, running, completed, failed]
+ *                         progress:
+ *                           type: object
+ *                           properties:
+ *                             total:
+ *                               type: number
+ *                             completed:
+ *                               type: number
+ *                             successful:
+ *                               type: number
+ *                             failed:
+ *                               type: number
+ *                             current:
+ *                               type: string
+ *                     messages:
+ *                       type: object
+ *                       properties:
+ *                         items:
+ *                           type: array
+ *                           items:
+ *                             type: object
+ *                             properties:
+ *                               timestamp:
+ *                                 type: string
+ *                                 format: date-time
+ *                               level:
+ *                                 type: string
+ *                                 enum: [info, success, error, warning]
+ *                               message:
+ *                                 type: string
+ *                               companyName:
+ *                                 type: string
+ *                         hasMore:
+ *                           type: boolean
+ *                         lastIndex:
+ *                           type: number
+ */
+router.get('/jobs/:jobId', asyncHandler(getJobDetails));
+
+/**
+ * @swagger
+ * /api/companies/jobs/{jobId}/status:
+ *   get:
+ *     summary: Get Job Status
+ *     description: Get basic job status and progress information without messages.
+ *     tags: [Job Management]
+ *     parameters:
+ *       - in: path
+ *         name: jobId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Job ID
+ *     responses:
+ *       200:
+ *         description: Job status retrieved successfully
+ */
+router.get('/jobs/:jobId/status', asyncHandler(getJobStatus));
+
+/**
+ * @swagger
+ * /api/companies/jobs/{jobId}/messages:
+ *   get:
+ *     summary: Get Job Messages
+ *     description: Get job messages/logs with optional pagination.
+ *     tags: [Job Management]
+ *     parameters:
+ *       - in: path
+ *         name: jobId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Job ID
+ *       - in: query
+ *         name: since
+ *         schema:
+ *           type: integer
+ *         description: Get messages after this index
+ *     responses:
+ *       200:
+ *         description: Job messages retrieved successfully
+ */
+router.get('/jobs/:jobId/messages', asyncHandler(getJobMessages));
+
+/**
+ * @swagger
+ * /api/companies/jobs:
+ *   get:
+ *     summary: List All Jobs
+ *     description: Get list of all jobs with statistics (admin endpoint).
+ *     tags: [Job Management]
+ *     responses:
+ *       200:
+ *         description: Jobs list retrieved successfully
+ */
+router.get('/jobs', optionalAuth, asyncHandler(listJobs));
+
+/**
+ * @swagger
+ * /api/companies/jobs/{jobId}:
+ *   delete:
+ *     summary: Cancel Job
+ *     description: Cancel a running or pending job.
+ *     tags: [Job Management]
+ *     parameters:
+ *       - in: path
+ *         name: jobId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Job ID
+ *     responses:
+ *       200:
+ *         description: Job cancelled successfully
+ */
+router.delete('/jobs/:jobId', optionalAuth, asyncHandler(cancelJob));
+
+/**
+ * @swagger
+ * /api/companies/websocket/stats:
+ *   get:
+ *     summary: Get WebSocket Server Statistics
+ *     description: Get real-time WebSocket server statistics including connected clients and active job rooms.
+ *     tags: [WebSocket Management]
+ *     responses:
+ *       200:
+ *         description: WebSocket statistics retrieved successfully
+ */
+router.get('/websocket/stats', optionalAuth, asyncHandler(getWebSocketStats));
 
 export default router;

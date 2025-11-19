@@ -12,6 +12,9 @@ This system uses a cutting-edge 4-stage pipeline for maximum data accuracy and c
 - **📊 Professional Export System**: Excel & CSV exports with comprehensive filtering
 - **📚 Interactive Swagger Documentation**: Test APIs directly in your browser
 - **🔍 Smart Company Matching**: Handles name variations and partial matches automatically
+- **🚀 Real-Time Job Processing**: Background bulk lookups with **WebSocket live monitoring**
+- **📱 Instant Progress Updates**: **WebSocket-powered** real-time status, messages, and completion tracking
+- **🎯 Professional User Experience**: No more waiting - **instant feedback with zero-latency WebSocket updates**
 
 ### Data Pipeline
 1. **🔍 Google Search Intelligence** → Find official company websites using Google's Programmable Search Engine
@@ -352,17 +355,120 @@ curl -X POST "http://localhost:8000/api/companies/lookup" \
 - 🔍 **Full Pipeline**: New companies processed in 8-20 seconds
 - 🎯 **Intelligent Matching**: Handles company name variations automatically
 
-#### 2. Bulk Company Lookup  
+#### 2. Bulk Company Lookup with Real-Time Monitoring 🆕
 **POST** `/api/companies/bulk-lookup`
 
-Process multiple companies with filtering in a single request (up to 100 companies).
+**Revolutionary job-based processing** - Start bulk lookups instantly and monitor progress in real-time! No more waiting for completion.
 
 ```bash
 curl -X POST "http://localhost:8000/api/companies/bulk-lookup" \
   -H "Content-Type: application/json" \
   -d '{
-    "names": ["Apple Inc", "Microsoft", "Google", "Amazon"],
-    "hints": {"turnover": "5000+", "type": "technology"}
+    "companies": ["Apple Inc", "Microsoft", "Google", "Amazon"],
+    "filters": {"turnover": "5000+", "type": "technology"}
+  }'
+```
+
+**Response (202 Accepted - Job Started):**
+```json
+{
+  "success": true,
+  "message": "Bulk lookup job started successfully",
+  "data": {
+    "jobId": "550e8400-e29b-41d4-a716-446655440000",
+    "companiesCount": 4,
+    "appliedFilters": {"turnover": "5000+", "type": "technology"},
+    "statusEndpoint": "/api/companies/jobs/550e8400-e29b-41d4-a716-446655440000/status"
+  }
+}
+```
+
+**Key Features:**
+- ⚡ **Immediate Response**: Get job ID instantly (no waiting!)
+- 📊 **Real-time Progress**: **WebSocket-powered** live updates on processing status
+- 📱 **Live Logging**: See exactly what's happening with each company **in real-time**
+- 🎯 **Professional UX**: Progress bars, success/failure indicators, and **instant WebSocket notifications**
+- 🔌 **Zero-Latency Updates**: No polling delays - updates pushed instantly via WebSocket
+
+#### 2a. Monitor Job Progress (WebSocket Real-Time Updates)
+**WebSocket Connection** `ws://localhost:8000`
+
+Connect via WebSocket for instant, zero-latency updates:
+
+```javascript
+// Connect to WebSocket
+const socket = io('ws://localhost:8000');
+
+// Subscribe to job updates
+socket.emit('subscribe-job', '550e8400-e29b-41d4-a716-446655440000');
+
+// Listen for real-time events
+socket.on('job-update', (data) => console.log('Status:', data.job.status));
+socket.on('job-message', (data) => console.log('Message:', data.message));
+socket.on('job-progress', (data) => console.log('Progress:', data.progress));
+```
+
+**Real-Time WebSocket Events:**
+```json
+{
+  "success": true,
+  "data": {
+    "job": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "status": "running",
+      "progress": {
+        "total": 4,
+        "completed": 2,
+        "successful": 2,
+        "failed": 0,
+        "current": "Google LLC"
+      }
+    },
+    "messages": {
+      "items": [
+        {
+          "timestamp": "2024-11-12T10:00:05Z",
+          "level": "info",
+          "message": "Processing company 3/4",
+          "companyName": "Google LLC"
+        },
+        {
+          "timestamp": "2024-11-12T10:00:08Z",
+          "level": "info", 
+          "message": "🔍 Searching Google for official website",
+          "companyName": "Google LLC"
+        },
+        {
+          "timestamp": "2024-11-12T10:00:12Z",
+          "level": "success",
+          "message": "✅ Found official website: google.com",
+          "companyName": "Google LLC"
+        },
+        {
+          "timestamp": "2024-11-12T10:00:15Z",
+          "level": "info",
+          "message": "🚀 Enriching data with Apollo API",
+          "companyName": "Google LLC"
+        }
+      ],
+      "hasMore": true,
+      "lastIndex": 15
+    }
+  }
+}
+```
+
+#### 2b. Synchronous Bulk Lookup (Legacy)
+**POST** `/api/companies/bulk-lookup-sync`
+
+For backward compatibility - waits for all companies to complete before returning:
+
+```bash
+curl -X POST "http://localhost:8000/api/companies/bulk-lookup-sync" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "companies": ["Apple Inc", "Microsoft"],
+    "filters": {"turnover": "5000+"}
   }'
 ```
 
@@ -421,6 +527,53 @@ curl "http://localhost:8000/api/companies/export/all/excel" \
 ```bash
 curl "http://localhost:8000/api/companies/export/csv?industry=fintech&minEmployees=50" \
   --output "fintech-companies.csv"
+```
+
+### 🚀 **NEW** - WebSocket Real-Time Job Management API
+
+#### Job Status Monitoring
+**GET** `/api/companies/jobs/{jobId}/status`
+
+Get basic job status and progress without messages:
+
+```bash
+curl "http://localhost:8000/api/companies/jobs/550e8400-e29b-41d4-a716-446655440000/status"
+```
+
+#### Job Messages/Logs  
+**GET** `/api/companies/jobs/{jobId}/messages?since=10`
+
+Get job messages with pagination for efficient polling:
+
+```bash
+curl "http://localhost:8000/api/companies/jobs/550e8400-e29b-41d4-a716-446655440000/messages?since=10"
+```
+
+#### List All Jobs (Admin)
+**GET** `/api/companies/jobs`
+
+View all jobs and system statistics:
+
+```bash
+curl "http://localhost:8000/api/companies/jobs"
+```
+
+#### Cancel Running Job
+**DELETE** `/api/companies/jobs/{jobId}`
+
+Cancel a running or pending job:
+
+```bash
+curl -X DELETE "http://localhost:8000/api/companies/jobs/550e8400-e29b-41d4-a716-446655440000"
+```
+
+#### WebSocket Server Statistics
+**GET** `/api/companies/websocket/stats`
+
+Monitor WebSocket server performance and connected clients:
+
+```bash
+curl "http://localhost:8000/api/companies/websocket/stats"
 ```
 
 ### 🎯 **NEW** - Bulk Operations API
@@ -865,9 +1018,11 @@ PRISMA_DISABLE_CONSOLE_LOG=true
 - **Apollo API**: 1-3 seconds per company  
 - **ChatGPT Enrichment**: 3-8 seconds per company
 - **Total New Company Pipeline**: 8-20 seconds per company
-- **Bulk Processing**: 30-60 seconds per company (with respectful delays)
+- **Bulk Processing (Job-based)**: Real-time progress updates every 2 seconds
+- **Bulk Processing (Legacy)**: 30-60 seconds per company (with respectful delays)
 - **List/Filter Operations**: 10-100ms for database queries
 - **Export Generation**: 1-5 seconds depending on data size
+- **Job Status Polling**: <50ms per status check
 
 ### Smart Caching Strategy
 - **Automatic Database Check**: Every lookup first checks for existing data
@@ -883,6 +1038,7 @@ PRISMA_DISABLE_CONSOLE_LOG=true
 - **Database Logs**: All database queries and transactions in `/logs/db-transactions.log`
 - **Database Errors**: Database errors and failures in `/logs/db-errors.log`
 - **Application Logs**: General application events in `/logs/app.log`
+- **Job Management Logs**: Real-time job processing and status updates
 
 ## 🛠️ Development
 
@@ -894,11 +1050,12 @@ src/
 │   ├── apollo.service.ts            # Apollo.io API integration
 │   ├── chatgpt.service.ts          # ChatGPT enrichment
 │   ├── company.service.ts          # Main pipeline orchestration
-│   └── excel-export.service.ts     # Export functionality
+│   ├── excel-export.service.ts     # Export functionality
+│   └── job-manager.service.ts      # 🆕 Real-time job management
 ├── controllers/
-│   └── company.controller.ts       # API endpoint handlers
+│   └── company.controller.ts       # API endpoint handlers + job endpoints
 ├── routes/
-│   └── companies.ts               # API routes
+│   └── companies.ts               # API routes + job management routes
 ├── lib/
 │   ├── config.ts                  # Configuration management
 │   └── logger.ts                  # Winston logging setup
@@ -937,7 +1094,75 @@ src/
 - OpenAI API: Intelligent request optimization
 - Bulk operations: Respectful delays between requests
 
-## 🐛 Troubleshooting
+## �️ Frontend Integration Guide
+
+### Real-Time Job Monitoring for Next.js
+
+For implementing the job-based bulk lookup system in your Next.js frontend with real-time progress monitoring, refer to our comprehensive guide:
+
+📖 **[Frontend Implementation Guide](docs/FRONTEND_JOB_POLLING_GUIDE.md)**
+
+**What's Included:**
+- Complete React hooks for job management (`useJobMonitor`)
+- Real-time polling implementation with automatic cleanup
+- Professional UI components with progress bars and live logs
+- Tailwind CSS styling with responsive design
+- Error handling and network recovery
+- TypeScript interfaces and type safety
+
+**Key Features:**
+- 🔄 **Smart Polling**: Automatically polls every 2 seconds and stops when complete
+- 📊 **Progress Visualization**: Live progress bars and completion percentages
+- 📱 **Real-time Messages**: Live log feed with color-coded message levels
+- 🎯 **Professional UX**: Loading states, success indicators, and error handling
+- ⚡ **Efficient Updates**: Only fetches new messages using pagination
+- 📱 **Mobile Responsive**: Works perfectly on all device sizes
+
+**Quick Integration Example:**
+
+```typescript
+import { useJobMonitor } from './hooks/useJobMonitor';
+import { JobProgressMonitor } from './components/JobProgressMonitor';
+
+function BulkLookupPage() {
+  const [jobId, setJobId] = useState(null);
+  
+  const handleSubmit = async (companies) => {
+    const response = await fetch('/api/companies/bulk-lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ companies })
+    });
+    const data = await response.json();
+    setJobId(data.data.jobId); // Start real-time monitoring
+  };
+
+  return (
+    <div>
+      {/* Your form here */}
+      {jobId && (
+        <JobProgressMonitor 
+          jobId={jobId}
+          onJobComplete={(result) => console.log('Done!', result)}
+        />
+      )}
+    </div>
+  );
+}
+```
+
+### API Documentation
+
+📖 **[Job API Documentation](docs/JOB_API_DOCUMENTATION.md)**
+
+Complete API reference with:
+- All job management endpoints
+- Real-time polling examples  
+- Request/response schemas
+- Error handling patterns
+- Performance recommendations
+
+## �🐛 Troubleshooting
 
 ### Common Issues
 
@@ -1005,6 +1230,12 @@ docker-compose up --build --force-recreate
 sudo chown -R $USER:$USER ./data
 ```
 - Review request/response logs in `/logs/chatgpt.log`
+
+**Job Management System Issues:**
+- Ensure all dependencies are installed: `npm install`
+- If you get UUID-related TypeScript errors: `npm install --save-dev @types/uuid`
+- Check job management logs for processing issues
+- Verify job cleanup is working (jobs auto-delete after 24 hours)
 
 **Database connection issues:**
 - Ensure MySQL is running

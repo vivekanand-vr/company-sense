@@ -5,6 +5,8 @@ import app from './app';
 import { prisma } from '@/lib/prisma';
 import { config } from '@/lib/config';
 import { logger } from '@/lib/logger';
+import { createServer } from 'http';
+import { webSocketService } from '@/services/websocket.service';
 
 async function startServer(): Promise<void> {
   try {
@@ -12,11 +14,19 @@ async function startServer(): Promise<void> {
     await prisma.$connect();
     logger.info('Database connected');
 
-    // Start HTTP server
-    const server = app.listen(config.port, () => {
+    // Create HTTP server
+    const httpServer = createServer(app);
+
+    // Initialize WebSocket service
+    webSocketService.initialize(httpServer);
+    logger.info('WebSocket service initialized');
+
+    // Start HTTP server with WebSocket support
+    const server = httpServer.listen(config.port, () => {
       logger.info(`Server running on port ${config.port}`);
       logger.info(`Environment: ${config.isDevelopment ? 'development' : 'production'}`);
       logger.info(`API URL: http://localhost:${config.port}`);
+      logger.info(`WebSocket URL: ws://localhost:${config.port}`);
       logger.info(`Health check: http://localhost:${config.port}/health`);
     });
 
@@ -28,6 +38,9 @@ async function startServer(): Promise<void> {
         logger.info('HTTP server closed');
 
         try {
+          // Close WebSocket connections
+          webSocketService.broadcastSystemMessage('Server shutting down', 'warning');
+          
           await prisma.$disconnect();
           logger.info('Database disconnected');
 

@@ -5,6 +5,8 @@ import { ExcelExportService } from '../services/excel-export.service';
 import { bulkSelectedSchema } from '../schemas/companies';
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
+import { jobManager } from '../services/job-manager.service';
+import { webSocketService } from '../services/websocket.service';
 
 // Validation schemas
 const CompanyLookupSchema = z.object({
@@ -110,9 +112,66 @@ export const lookupCompany = async (req: Request, res: Response): Promise<void> 
 };
 
 /**
- * Bulk company lookup with filtering
+ * Bulk company lookup with filtering (background job version)
  */
 export const bulkLookupCompanies = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Validate request body
+    const validation = BulkLookupSchema.safeParse(req.body);
+    if (!validation.success) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid request data',
+        errors: validation.error.errors
+      });
+      return;
+    }
+
+    const { companies, filters } = validation.data;
+    
+    logger.info('Bulk company lookup job initiated', { 
+      companiesCount: companies.length, 
+      filters 
+    });
+    
+    // Clean filters to ensure proper typing - only include defined values
+    const cleanFilters = filters ? Object.fromEntries(
+      Object.entries(filters).filter(([_, value]) => value !== undefined)
+    ) as typeof filters : undefined;
+    
+    // Start job in background and return job ID immediately
+    const jobId = await companyService.startBulkLookupJob(companies, cleanFilters);
+
+    res.status(202).json({
+      success: true,
+      message: 'Bulk lookup job started successfully',
+      data: {
+        jobId,
+        companiesCount: companies.length,
+        appliedFilters: filters,
+        statusEndpoint: `/api/companies/jobs/${jobId}/status`
+      }
+    });
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    logger.error('Failed to start bulk company lookup job', { 
+      companies: req.body.companies,
+      error: errorMessage
+    });
+
+    res.status(500).json({
+      success: false,
+      message: errorMessage
+    });
+  }
+};
+
+/**
+ * Bulk company lookup with filtering (synchronous version for backward compatibility)
+ */
+export const bulkLookupCompaniesSync = async (req: Request, res: Response): Promise<void> => {
   const startTime = Date.now();
   
   try {
@@ -129,7 +188,7 @@ export const bulkLookupCompanies = async (req: Request, res: Response): Promise<
 
     const { companies, filters } = validation.data;
     
-    logger.info('Bulk company lookup initiated', { 
+    logger.info('Synchronous bulk company lookup initiated', { 
       companiesCount: companies.length, 
       filters 
     });
@@ -178,7 +237,7 @@ export const bulkLookupCompanies = async (req: Request, res: Response): Promise<
     const processingTimeMs = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     
-    logger.error('Bulk company lookup failed', { 
+    logger.error('Synchronous bulk company lookup failed', { 
       companies: req.body.companies,
       error: errorMessage,
       processingTimeMs
@@ -627,6 +686,339 @@ export const bulkDeleteCompanies = async (req: Request, res: Response): Promise<
     res.status(500).json({
       success: false,
       message: `Bulk deletion failed: ${errorMessage}`
+    });
+  }
+};
+
+/**
+ * Get job status and progress
+ * GET /api/companies/jobs/:jobId/status
+ */
+export const getJobStatus = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { jobId } = req.params;
+    
+    if (!jobId) {
+      res.status(400).json({
+        success: false,
+        message: 'Job ID is required'
+      });
+      return;
+    }
+
+    const jobStatus = jobManager.getJobStatus(jobId);
+    
+    if (!jobStatus) {
+      res.status(404).json({
+        success: false,
+        message: 'Job not found'
+      });
+      return;
+    }
+
+    logger.info('Job status requested', { jobId, status: jobStatus.status });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: jobStatus.id,
+        status: jobStatus.status,
+        progress: jobStatus.progress,
+        createdAt: jobStatus.createdAt,
+        startedAt: jobStatus.startedAt,
+        completedAt: jobStatus.completedAt,
+        result: jobStatus.result,
+        error: jobStatus.error
+      }
+    });
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    logger.error('Failed to get job status', { 
+      jobId: req.params.jobId,
+      error: errorMessage
+    });
+
+    res.status(500).json({
+      success: false,
+      message: errorMessage
+    });
+  }
+};
+
+/**
+ * Get job messages/logs
+ * GET /api/companies/jobs/:jobId/messages
+ */
+export const getJobMessages = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { jobId } = req.params;
+    const { since } = req.query;
+    
+    if (!jobId) {
+      res.status(400).json({
+        success: false,
+        message: 'Job ID is required'
+      });
+      return;
+    }
+
+    const lastMessageIndex = since ? parseInt(since as string) : undefined;
+    const messages = jobManager.getJobMessages(jobId, lastMessageIndex);
+    
+    if (messages === null) {
+      res.status(404).json({
+        success: false,
+        message: 'Job not found'
+      });
+      return;
+    }
+
+    logger.info('Job messages requested', { 
+      jobId, 
+      messagesCount: messages.length,
+      since: lastMessageIndex 
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        messages,
+        hasMore: messages.length > 0,
+        lastIndex: messages.length > 0 ? (lastMessageIndex || -1) + messages.length : (lastMessageIndex || -1)
+      }
+    });
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    logger.error('Failed to get job messages', { 
+      jobId: req.params.jobId,
+      error: errorMessage
+    });
+
+    res.status(500).json({
+      success: false,
+      message: errorMessage
+    });
+  }
+};
+
+/**
+ * Get combined job status and recent messages
+ * GET /api/companies/jobs/:jobId
+ */
+export const getJobDetails = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { jobId } = req.params;
+    const { messagesSince } = req.query;
+    
+    if (!jobId) {
+      res.status(400).json({
+        success: false,
+        message: 'Job ID is required'
+      });
+      return;
+    }
+
+    const jobStatus = jobManager.getJobStatus(jobId);
+    
+    if (!jobStatus) {
+      res.status(404).json({
+        success: false,
+        message: 'Job not found'
+      });
+      return;
+    }
+
+    const lastMessageIndex = messagesSince ? parseInt(messagesSince as string) : undefined;
+    const messages = jobManager.getJobMessages(jobId, lastMessageIndex);
+
+    logger.info('Job details requested', { 
+      jobId, 
+      status: jobStatus.status,
+      messagesCount: messages.length 
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        job: {
+          id: jobStatus.id,
+          type: jobStatus.type,
+          status: jobStatus.status,
+          progress: jobStatus.progress,
+          createdAt: jobStatus.createdAt,
+          startedAt: jobStatus.startedAt,
+          completedAt: jobStatus.completedAt,
+          result: jobStatus.result,
+          error: jobStatus.error
+        },
+        messages: {
+          items: messages,
+          hasMore: messages.length > 0,
+          lastIndex: messages.length > 0 ? (lastMessageIndex || -1) + messages.length : (lastMessageIndex || -1)
+        }
+      }
+    });
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    logger.error('Failed to get job details', { 
+      jobId: req.params.jobId,
+      error: errorMessage
+    });
+
+    res.status(500).json({
+      success: false,
+      message: errorMessage
+    });
+  }
+};
+
+/**
+ * List all jobs (for admin/debugging purposes)
+ * GET /api/companies/jobs
+ */
+export const listJobs = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const jobs = jobManager.getAllJobs();
+    const stats = jobManager.getJobStats();
+
+    logger.info('Jobs list requested', { 
+      totalJobs: jobs.length,
+      stats 
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        jobs: jobs.map(job => ({
+          id: job.id,
+          type: job.type,
+          status: job.status,
+          progress: job.progress,
+          createdAt: job.createdAt,
+          startedAt: job.startedAt,
+          completedAt: job.completedAt,
+          messageCount: job.messages.length
+        })),
+        statistics: stats
+      }
+    });
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    logger.error('Failed to list jobs', { error: errorMessage });
+
+    res.status(500).json({
+      success: false,
+      message: errorMessage
+    });
+  }
+};
+
+/**
+ * Cancel a running job
+ * DELETE /api/companies/jobs/:jobId
+ */
+export const cancelJob = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { jobId } = req.params;
+    
+    if (!jobId) {
+      res.status(400).json({
+        success: false,
+        message: 'Job ID is required'
+      });
+      return;
+    }
+
+    const jobStatus = jobManager.getJobStatus(jobId);
+    
+    if (!jobStatus) {
+      res.status(404).json({
+        success: false,
+        message: 'Job not found'
+      });
+      return;
+    }
+
+    if (jobStatus.status === 'completed' || jobStatus.status === 'failed') {
+      res.status(400).json({
+        success: false,
+        message: `Job is already ${jobStatus.status} and cannot be cancelled`
+      });
+      return;
+    }
+
+    // For now, we'll mark it as failed with a cancellation message
+    // In a more advanced implementation, you'd have proper cancellation logic
+    jobManager.failJob(jobId, 'Job cancelled by user request');
+
+    logger.info('Job cancelled', { jobId, previousStatus: jobStatus.status });
+
+    res.status(200).json({
+      success: true,
+      message: 'Job cancelled successfully'
+    });
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    logger.error('Failed to cancel job', { 
+      jobId: req.params.jobId,
+      error: errorMessage
+    });
+
+    res.status(500).json({
+      success: false,
+      message: errorMessage
+    });
+  }
+};
+
+/**
+ * Get WebSocket server statistics
+ * GET /api/companies/websocket/stats
+ */
+export const getWebSocketStats = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const stats = webSocketService.getStats();
+    
+    if (!stats) {
+      res.status(503).json({
+        success: false,
+        message: 'WebSocket service not available'
+      });
+      return;
+    }
+
+    logger.info('WebSocket stats requested', stats);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        websocketServer: {
+          connectedClients: stats.connectedClients,
+          activeRooms: stats.rooms.length,
+          uptime: `${Math.round(stats.uptime)}s`
+        },
+        jobManager: jobManager.getJobStats()
+      }
+    });
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    logger.error('Failed to get WebSocket stats', { error: errorMessage });
+
+    res.status(500).json({
+      success: false,
+      message: errorMessage
     });
   }
 };

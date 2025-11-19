@@ -3,6 +3,7 @@ import { ApolloService } from './apollo.service';
 import { ChatGPTService } from './chatgpt.service';
 import { prisma } from '../lib/prisma';
 import { logger, logPipelineStep } from '../lib/logger';
+import { jobManager } from './job-manager.service';
 
 export interface CompanyLookupFilters {
   turnover?: string | undefined;
@@ -234,6 +235,245 @@ export class CompanyService {
       results,
       summary
     };
+  }
+
+  /**
+   * Start bulk lookup job in background and return job ID
+   */
+  async startBulkLookupJob(companyNames: string[], filters?: CompanyLookupFilters): Promise<string> {
+    const jobId = jobManager.createJob('bulk_lookup', companyNames.length, { 
+      companyNames: companyNames.slice(0, 5), // Log first 5 companies
+      filtersApplied: !!filters 
+    });
+
+    // Start processing in background
+    setImmediate(() => this.processBulkLookupJob(jobId, companyNames, filters));
+
+    return jobId;
+  }
+
+  /**
+   * Process bulk lookup job with detailed logging
+   */
+  private async processBulkLookupJob(jobId: string, companyNames: string[], filters?: CompanyLookupFilters): Promise<void> {
+    try {
+      jobManager.startJob(jobId);
+      jobManager.addJobMessage(jobId, 'info', `Starting bulk lookup for ${companyNames.length} companies`);
+
+      const results: CompanyLookupResult[] = [];
+      let successful = 0;
+      let failed = 0;
+      let meetsFilterCriteria = 0;
+
+      for (let i = 0; i < companyNames.length; i++) {
+        const companyName = companyNames[i];
+        
+        if (!companyName) {
+          failed++;
+          jobManager.addJobMessage(jobId, 'error', `❌ Company name is empty at index ${i}`);
+          continue;
+        }
+        
+        try {
+          jobManager.addJobMessage(jobId, 'info', `Processing company ${i + 1}/${companyNames.length}`, companyName);
+          jobManager.updateJobProgress(jobId, i, successful, failed, companyName);
+
+          const result = await this.lookupCompanyWithJobLogging(companyName, jobId, filters);
+          results.push(result);
+          successful++;
+          
+          if (result.meetsFilterCriteria) {
+            meetsFilterCriteria++;
+            jobManager.addJobMessage(jobId, 'success', `✅ Company processed and meets criteria`, companyName, {
+              dataSource: result.dataSource,
+              processingTime: `${result.processingTimeMs}ms`
+            });
+          } else {
+            jobManager.addJobMessage(jobId, 'warning', `⚠️ Company processed but doesn't meet filter criteria`, companyName, {
+              filterAnalysis: result.filterAnalysis
+            });
+          }
+          
+        } catch (error) {
+          failed++;
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          jobManager.addJobMessage(jobId, 'error', `❌ Failed to process company: ${errorMessage}`, companyName);
+          logger.error('Failed to lookup company in bulk job', {
+            jobId,
+            companyName,
+            error: errorMessage
+          });
+        }
+
+        // Update progress after each company
+        jobManager.updateJobProgress(jobId, i + 1, successful, failed);
+        
+        // Add delay between requests to be respectful to APIs
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      const summary = {
+        total: companyNames.length,
+        successful,
+        failed,
+        meetsFilterCriteria
+      };
+
+      const result: BulkLookupResult = {
+        results,
+        summary
+      };
+
+      jobManager.completeJob(jobId, result);
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      jobManager.failJob(jobId, errorMessage);
+    }
+  }
+
+  /**
+   * Lookup company with detailed job logging
+   */
+  private async lookupCompanyWithJobLogging(companyName: string, jobId: string, filters?: CompanyLookupFilters): Promise<CompanyLookupResult> {
+    const startTime = Date.now();
+    
+    try {
+      if (jobId) {
+        jobManager.addJobMessage(jobId, 'info', 'Starting company lookup pipeline', companyName);
+      }
+
+      // Step 0: Check if company already exists in database
+      if (jobId) {
+        jobManager.addJobMessage(jobId, 'info', 'Checking database for existing company data', companyName);
+      }
+      
+      const existingCompany = await this.findExistingCompany(companyName);
+      
+      if (existingCompany) {
+        if (jobId) {
+          jobManager.addJobMessage(jobId, 'success', '🎯 Found company in database cache', companyName, {
+            lastUpdated: existingCompany.lastUpdated
+          });
+        }
+        
+        const processingTimeMs = Date.now() - startTime;
+        const { meetsFilterCriteria, filterAnalysis } = this.analyzeFilters(existingCompany, filters);
+        
+        return {
+          company: existingCompany,
+          meetsFilterCriteria,
+          filterAnalysis,
+          processingTimeMs,
+          dataSource: 'database_cache'
+        };
+      }
+      
+      if (jobId) {
+        jobManager.addJobMessage(jobId, 'info', 'Company not in database, starting external search', companyName);
+      }
+
+      // Step 1: Google Search to find official website
+      if (jobId) {
+        jobManager.addJobMessage(jobId, 'info', '🔍 Searching Google for official website', companyName);
+      }
+      
+      const websiteData = await this.googleSearch.findOfficialWebsite(companyName);
+      
+      if (!websiteData) {
+        if (jobId) {
+          jobManager.addJobMessage(jobId, 'error', '❌ Could not find official website on Google', companyName);
+        }
+        throw new Error(`Could not find official website for ${companyName}`);
+      }
+      
+      if (jobId) {
+        jobManager.addJobMessage(jobId, 'success', `✅ Found official website: ${websiteData.domain}`, companyName);
+      }
+
+      // Step 2: Apollo API enrichment
+      if (jobId) {
+        jobManager.addJobMessage(jobId, 'info', '🚀 Enriching data with Apollo API', companyName);
+      }
+      
+      const apolloData = await this.apollo.getOrganizationData(websiteData.domain, companyName);
+      
+      if (!apolloData) {
+        if (jobId) {
+          jobManager.addJobMessage(jobId, 'error', '❌ No company data found in Apollo database', companyName);
+        }
+        throw new Error(`Could not find company data in Apollo for ${companyName}`);
+      }
+      
+      if (jobId) {
+        jobManager.addJobMessage(jobId, 'success', `✅ Apollo data retrieved (${apolloData.estimated_num_employees || 'N/A'} employees)`, companyName);
+      }
+
+      // Step 3: Extract and format Apollo data
+      const companyData = this.apollo.extractCompanyData(apolloData);
+      
+      // Step 4: ChatGPT enrichment for summary and missing data
+      if (jobId) {
+        jobManager.addJobMessage(jobId, 'info', '🤖 Enhancing data with ChatGPT AI', companyName);
+      }
+      
+      const enrichmentData = await this.chatgpt.enrichCompanyData({
+        companyName,
+        apolloData: companyData,
+        missingFields: this.identifyMissingFields(companyData),
+        requestType: 'full_enrichment'
+      });
+      
+      if (jobId) {
+        jobManager.addJobMessage(jobId, 'success', '✅ ChatGPT enrichment completed', companyName, {
+          enrichedFields: Object.keys(enrichmentData).length
+        });
+      }
+
+      // Step 5: Combine all data
+      const enrichedCompany = this.combineCompanyData(companyData, enrichmentData, websiteData);
+      
+      // Step 6: Apply filters if provided
+      const filterResult = filters ? this.applyFilters(enrichedCompany, filters) : { 
+        meetsFilterCriteria: true, 
+        filterAnalysis: {} 
+      };
+
+      const processingTime = Date.now() - startTime;
+
+      const result: CompanyLookupResult = {
+        company: enrichedCompany,
+        meetsFilterCriteria: filterResult.meetsFilterCriteria,
+        filterAnalysis: filterResult.filterAnalysis,
+        processingTimeMs: processingTime,
+        dataSource: 'google_apollo_chatgpt'
+      };
+
+      // Step 7: Save to database if meets filter criteria
+      if (filterResult.meetsFilterCriteria) {
+        await this.saveCompanyToDatabase(enrichedCompany);
+        if (jobId) {
+          jobManager.addJobMessage(jobId, 'success', '💾 Company data saved to database', companyName);
+        }
+      } else {
+        if (jobId) {
+          jobManager.addJobMessage(jobId, 'warning', '⚠️ Company data not saved (does not meet filter criteria)', companyName);
+        }
+      }
+
+      return result;
+
+    } catch (error: any) {
+      const processingTime = Date.now() - startTime;
+      
+      if (jobId) {
+        jobManager.addJobMessage(jobId, 'error', `❌ Company lookup failed: ${error.message}`, companyName, {
+          processingTimeMs: processingTime
+        });
+      }
+
+      throw error;
+    }
   }
 
   async getAllCompanies(filters?: CompanyLookupFilters): Promise<any[]> {
