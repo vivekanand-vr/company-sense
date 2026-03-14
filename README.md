@@ -1,0 +1,3 @@
+## Company Sense
+
+A full-stack application for extracting and analyzing comprehensive company intelligence. It combines Google’s Programmable Search Engine, Apollo.io API, and ChatGPT-powered AI enrichment to generate accurate business insights from company names. The project includes a modern Next.js frontend for intuitive single and bulk company lookups, and a backend API that aggregates, processes, and enriches data to deliver comprehensive company research.
